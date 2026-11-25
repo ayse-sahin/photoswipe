@@ -21,3 +21,32 @@ Built with React Native + Expo (TypeScript).
 5. The app opens on your phone. Your phone and Mac must be on the same Wi-Fi.
 
 Edit `App.tsx`, save, and the phone updates automatically.
+
+## Make a real installable app
+
+Builds run in the cloud with Expo's EAS Build. You need a free Expo account (https://expo.dev/signup).
+
+One-time setup, in Terminal:
+```bash
+npm install -g eas-cli
+cd ~/photoswipe
+eas login
+eas init
+```
+
+**Android** (free): builds an `.apk` file and gives you a link. Anyone with an Android phone can open the link, download it and install it (they may need to allow "install unknown apps").
+```bash
+eas build --platform android --profile preview
+```
+
+**iPhone**: needs an Apple Developer account ($99/year).
+- Ad hoc (up to 100 iPhones you register): friends open a link from `eas device:create` to register their phone, then
+  ```bash
+  eas build --platform ios --profile preview
+  ```
+  and install from the link EAS gives you.
+- TestFlight (easiest for friends, also the path to the App Store):
+  ```bash
+  eas build --platform ios --profile production
+  eas submit --platform ios
+  ```
