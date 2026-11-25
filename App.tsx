@@ -1,5 +1,4 @@
 import { StatusBar } from 'expo-status-bar';
-import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useState } from 'react';
 import {
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateField from './src/DateField';
+import PhotoThumb from './src/PhotoThumb';
 import { loadPhotos } from './src/photos';
 
 const COLUMNS = 3;
@@ -119,6 +119,7 @@ function HomeScreen() {
       <StatusBar style="auto" />
       <View style={styles.header}>
         <Text style={styles.title}>Galeri</Text>
+        <Text style={styles.note}>Version: step 3, fix 2</Text>
         {permission.accessPrivileges === 'limited' && (
           <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
         )}
@@ -161,14 +162,7 @@ function HomeScreen() {
         data={photos ?? []}
         keyExtractor={(item) => item.id}
         numColumns={COLUMNS}
-        renderItem={({ item }) => (
-          <Image
-            source={{ uri: item.uri }}
-            style={styles.tile}
-            contentFit="cover"
-            recyclingKey={item.id}
-          />
-        )}
+        renderItem={({ item }) => <PhotoThumb asset={item} style={styles.tile} />}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} /> : undefined}
