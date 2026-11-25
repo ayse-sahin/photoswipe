@@ -1,4 +1,4 @@
-# Galeri
+# Pare
 
 A phone app (iPhone and Android) for cleaning up your photos. Pick a start date, then swipe through your photos: left to delete, right to keep. Similar photos get grouped so you can clean up bursts quickly.
 

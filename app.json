@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Galeri",
+    "name": "Pare",
     "slug": "galeri-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -25,8 +25,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Galeri needs access to your photos so you can sort through them and delete the ones you don't want.",
-          "savePhotosPermission": "Galeri needs access to your photos so you can sort through them.",
+          "photosPermission": "Pare needs access to your photos so you can sort through them and delete the ones you don't want.",
+          "savePhotosPermission": "Pare needs access to your photos so you can sort through them.",
           "isAccessMediaLocationEnabled": false,
           "granularPermissions": [
             "photo"

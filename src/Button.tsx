@@ -21,7 +21,13 @@ export default function Button({ label, onPress, disabled, variant = 'primary' }
         (pressed || disabled) && { opacity: 0.6 },
       ]}
     >
-      <Text style={[styles.text, secondary && styles.secondaryText]}>{label}</Text>
+      <Text
+        style={[
+          styles.text,
+          secondary && styles.secondaryText,
+          variant === 'danger' && styles.dangerText,
+        ]}
+      >{label}</Text>
     </Pressable>
   );
 }
@@ -41,8 +47,11 @@ const styles = StyleSheet.create({
   danger: {
     backgroundColor: colors.delete,
   },
+  dangerText: {
+    color: colors.text,
+  },
   text: {
-    color: '#fff',
+    color: colors.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },

@@ -409,7 +409,7 @@ function RoundButton({
   small?: boolean;
   disabled?: boolean;
 }) {
-  const size = small ? 52 : 68;
+  const size = small ? 46 : 60;
   return (
     <Pressable
       onPress={onPress}
@@ -420,7 +420,7 @@ function RoundButton({
         (pressed || disabled) && { opacity: 0.4 },
       ]}
     >
-      <Text style={{ color, fontSize: small ? 24 : 30, fontWeight: '700' }}>{label}</Text>
+      <Text style={{ color, fontSize: small ? 20 : 26, fontWeight: '700' }}>{label}</Text>
     </Pressable>
   );
 }
@@ -491,7 +491,8 @@ const styles = StyleSheet.create({
   },
   deck: {
     flex: 1,
-    margin: 16,
+    marginHorizontal: 8,
+    marginVertical: 4,
   },
   card: {
     position: 'absolute',
@@ -620,7 +621,7 @@ const styles = StyleSheet.create({
   },
   round: {
     backgroundColor: colors.surface,
-    borderWidth: 3,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -103,9 +103,9 @@ function HomeScreen() {
   if (!permission.granted) {
     return (
       <Centered>
-        <Text style={styles.title}>Galeri</Text>
+        <Text style={styles.title}>Pare</Text>
         <Text style={styles.body}>
-          Galeri needs access to your photos so you can swipe through them. Your photos never leave
+          Pare needs access to your photos so you can swipe through them. Your photos never leave
           your phone.
         </Text>
         {permission.canAskAgain ? (
@@ -151,9 +151,9 @@ function HomeScreen() {
   const header = (
     <View style={styles.header}>
       <Text style={styles.title}>
-        Galeri<Text style={{ color: colors.accent }}>.</Text>
+        Pare<Text style={{ color: colors.accent }}>.</Text>
       </Text>
-      <Text style={styles.tagline}>Swipe your camera roll clean.</Text>
+      <Text style={styles.tagline}>Pare your camera roll down to the best.</Text>
       {permission.accessPrivileges === 'limited' && (
         <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
       )}
@@ -229,7 +229,7 @@ function HomeScreen() {
         ListFooterComponent={
           <View>
             {loading && <ActivityIndicator color={colors.accent} style={{ margin: 16 }} />}
-            <Text style={styles.version}>Version: step 7, design 1</Text>
+            <Text style={styles.version}>Version: step 7, design 2</Text>
           </View>
         }
       />
@@ -259,9 +259,9 @@ function ActionCard({
         pressed && { opacity: 0.75 },
       ]}
     >
-      <Text style={[styles.actionIcon, highlight && { color: '#fff' }]}>{icon}</Text>
-      <Text style={styles.actionTitle}>{title}</Text>
-      <Text style={[styles.actionSub, highlight && { color: 'rgba(255,255,255,0.8)' }]}>
+      <Text style={[styles.actionIcon, highlight && { color: colors.onAccent }]}>{icon}</Text>
+      <Text style={[styles.actionTitle, highlight && { color: colors.onAccent }]}>{title}</Text>
+      <Text style={[styles.actionSub, highlight && { color: colors.onAccent, opacity: 0.75 }]}>
         {subtitle}
       </Text>
     </Pressable>
