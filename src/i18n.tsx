@@ -70,7 +70,7 @@ const en = {
 };
 
 const tr: typeof en = {
-  tagline: 'Galerini en iyilerine indir.',
+  tagline: 'Pare your camera roll down to the best.', // Bora: keep English in Turkish too
   permissionText:
     'Fotoğraflarında gezinebilmen için Pare fotoğraflarına erişmeli. Fotoğrafların telefonundan hiç çıkmaz.',
   allowAccess: 'Fotoğraflara erişim izni ver',
@@ -114,8 +114,8 @@ const tr: typeof en = {
   undecidedRound: 'Kararsız ',
   stampKeep: 'SAKLA',
   stampDelete: 'SİL',
-  stampUnsure: 'EMİN DEĞİLİM',
-  swipeHint: 'Sol: sil · Yukarı: emin değilim · Sağ: sakla',
+  stampUnsure: 'KARARSIZ',
+  swipeHint: 'Sol: sil · Yukarı: kararsız · Sağ: sakla',
   review: 'Gözden geçir',
   reviewSub: (n) =>
     n === 0

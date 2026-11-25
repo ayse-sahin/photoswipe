@@ -255,7 +255,7 @@ function HomeScreen() {
       <SafeAreaView style={styles.screen}>
         <ScrollView contentContainerStyle={styles.centeredScroll}>
           {header}
-          <Text style={styles.version}>Version: step 7, Turkish</Text>
+          <Text style={styles.version}>Version: step 7, Turkish 2</Text>
         </ScrollView>
       </SafeAreaView>
     );
@@ -274,7 +274,7 @@ function HomeScreen() {
         ListFooterComponent={
           <View>
             {loading && <ActivityIndicator color={colors.accent} style={{ margin: 16 }} />}
-            <Text style={styles.version}>Version: step 7, Turkish</Text>
+            <Text style={styles.version}>Version: step 7, Turkish 2</Text>
           </View>
         }
       />
