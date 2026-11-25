@@ -8,6 +8,9 @@ import SwipeScreen from './SwipeScreen';
 import { groupPhotos, PhotoGroup, prepareFingerprints } from './grouping';
 import { loadAllPhotos } from './photos';
 
+// Only groups with at least this many photos are shown.
+const MIN_GROUP_SIZE = 7;
+
 type Props = {
   from: Date;
   to: Date;
@@ -43,7 +46,9 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
   const groups = useMemo(
     () =>
       ready && photos
-        ? groupPhotos(photos, 'medium').filter((i): i is PhotoGroup => i.kind === 'group')
+        ? groupPhotos(photos, 'medium').filter(
+            (i): i is PhotoGroup => i.kind === 'group' && i.assets.length >= MIN_GROUP_SIZE,
+          )
         : null,
     [ready, photos],
   );
@@ -82,7 +87,7 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
         {groups && (
           <Text style={styles.sub}>
             {groups.length === 0
-              ? 'No similar photos found in these dates.'
+              ? `No groups of ${MIN_GROUP_SIZE} or more similar photos in these dates.`
               : `${groups.length} group${groups.length === 1 ? '' : 's'} of similar photos. Tap one to swipe through it.`}
           </Text>
         )}
