@@ -1,11 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
+import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Image,
   Linking,
   Pressable,
   StyleSheet,
@@ -161,7 +161,14 @@ function HomeScreen() {
         data={photos ?? []}
         keyExtractor={(item) => item.id}
         numColumns={COLUMNS}
-        renderItem={({ item }) => <Image source={{ uri: item.uri }} style={styles.tile} />}
+        renderItem={({ item }) => (
+          <Image
+            source={{ uri: item.uri }}
+            style={styles.tile}
+            contentFit="cover"
+            recyclingKey={item.id}
+          />
+        )}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} /> : undefined}
