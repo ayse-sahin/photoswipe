@@ -6,13 +6,14 @@ import Button from './Button';
 import PhotoThumb from './PhotoThumb';
 import { colors } from './theme';
 import { useT } from './i18n';
+import { totalSize } from './space';
 
 type Props = {
   photos: MediaLibrary.Asset[];
   // Called when the user taps a photo to keep it after all.
   onKeep: (id: string) => void;
   onBack: () => void;
-  onDeleted: (count: number) => void;
+  onDeleted: (count: number, bytes: number) => void;
 };
 
 const COLUMNS = 3;
@@ -30,8 +31,10 @@ export default function ReviewScreen({ photos, onKeep, onBack, onDeleted }: Prop
     try {
       // The phone shows its own "Delete N photos?" question first. On iPhone the
       // photos go to "Recently Deleted", where they stay for 30 days.
+      // Measure the files first: after deleting, they can't be measured anymore.
+      const bytes = await totalSize(photos);
       const ok = await MediaLibrary.deleteAssetsAsync(photos.map((p) => p.id));
-      if (ok) onDeleted(count);
+      if (ok) onDeleted(count, bytes);
     } catch (e) {
       // Tapping "Don't Allow" on the phone's question also lands here.
       const message = e instanceof Error ? e.message : String(e);

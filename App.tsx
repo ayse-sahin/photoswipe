@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import * as MediaLibrary from 'expo-media-library/legacy';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -19,6 +19,7 @@ import Button from './src/Button';
 import PhotoThumb from './src/PhotoThumb';
 import { colors } from './src/theme';
 import { LanguageProvider, useLanguage, useT } from './src/i18n';
+import { formatBytes, getTotalFreed } from './src/space';
 import GroupsScreen from './src/GroupsScreen';
 import SwipeScreen from './src/SwipeScreen';
 import { loadPhotos } from './src/photos';
@@ -63,6 +64,11 @@ function HomeScreen() {
 
   const [mode, setMode] = useState<'home' | 'swipe' | 'best'>('home');
   const [showPhotos, setShowPhotos] = useState(false);
+  const [freed, setFreed] = useState(0);
+  // Refresh the "space freed" total whenever we come back to the start screen.
+  useEffect(() => {
+    if (mode === 'home') getTotalFreed().then(setFreed);
+  }, [mode]);
 
   const rangeEnd = useEndDate ? endDate : new Date();
 
@@ -177,6 +183,11 @@ function HomeScreen() {
       <Text style={[styles.tagline, !showPhotos && styles.centerText]}>
         {t.tagline}
       </Text>
+      {freed > 0 && (
+        <Text style={[styles.freed, !showPhotos && styles.centerText]}>
+          {t.totalFreed(formatBytes(freed, t.locale))}
+        </Text>
+      )}
       {permission.accessPrivileges === 'limited' && (
         <Text style={styles.note}>{t.limitedAccess}</Text>
       )}
@@ -255,7 +266,7 @@ function HomeScreen() {
       <SafeAreaView style={styles.screen}>
         <ScrollView contentContainerStyle={styles.centeredScroll}>
           {header}
-          <Text style={styles.version}>Version: step 7, Turkish 2</Text>
+          <Text style={styles.version}>Version: step 7, space freed</Text>
         </ScrollView>
       </SafeAreaView>
     );
@@ -274,7 +285,7 @@ function HomeScreen() {
         ListFooterComponent={
           <View>
             {loading && <ActivityIndicator color={colors.accent} style={{ margin: 16 }} />}
-            <Text style={styles.version}>Version: step 7, Turkish 2</Text>
+            <Text style={styles.version}>Version: step 7, space freed</Text>
           </View>
         }
       />
@@ -489,6 +500,13 @@ const styles = StyleSheet.create({
   },
   langTextActive: {
     color: colors.onAccent,
+  },
+  freed: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.keep,
+    marginTop: -12,
+    marginBottom: 20,
   },
   centerText: {
     textAlign: 'center',

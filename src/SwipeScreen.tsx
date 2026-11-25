@@ -16,6 +16,7 @@ import Button from './Button';
 import PhotoThumb from './PhotoThumb';
 import { colors } from './theme';
 import { useT } from './i18n';
+import { addToTotalFreed, formatBytes, totalSize } from './space';
 import ReviewScreen from './ReviewScreen';
 import { loadAllPhotos } from './photos';
 
@@ -68,7 +69,11 @@ export default function SwipeScreen({
   // One entry per swipe in this round, in order. Its length is the index of the current card.
   const [history, setHistory] = useState<{ id: string; decision: Decision }[]>([]);
   const [reviewing, setReviewing] = useState(false);
-  const [deletedCount, setDeletedCount] = useState<number | null>(null);
+  const [deleted, setDeleted] = useState<{ count: number; bytes: number } | null>(null);
+  const finishDelete = async (count: number, bytes: number) => {
+    await addToTotalFreed(bytes);
+    setDeleted({ count, bytes });
+  };
 
   useEffect(() => {
     (givenPhotos ? Promise.resolve(givenPhotos) : loadAllPhotos(from!, to!))
@@ -189,13 +194,20 @@ export default function SwipeScreen({
     );
   }
 
-  if (deletedCount !== null) {
+  if (deleted) {
     return (
       <Centered>
-        <Text style={styles.title}>{t.deletedTitle(deletedCount)}</Text>
-        <Text style={styles.body}>
-          {t.deletedBody}
-        </Text>
+        <Text style={styles.freedEmoji}>🎉</Text>
+        {deleted.bytes > 0 ? (
+          <>
+            <Text style={styles.freedTitle}>{t.youFreed(formatBytes(deleted.bytes, t.locale))}</Text>
+            <Text style={styles.body}>{t.photosDeleted(deleted.count)}</Text>
+          </>
+        ) : (
+          // Couldn't measure the files (e.g. photos only in iCloud): just show the count.
+          <Text style={styles.freedTitle}>{t.photosDeleted(deleted.count)}</Text>
+        )}
+        <Text style={styles.note}>{t.spaceNote}</Text>
         <Button label={leaveLabel} onPress={onDeleted} />
       </Centered>
     );
@@ -207,7 +219,7 @@ export default function SwipeScreen({
         photos={allPhotos.filter((p) => decisions.get(p.id) === 'delete')}
         onKeep={(id) => setKeptInReview((s) => new Set(s).add(id))}
         onBack={() => setReviewing(false)}
-        onDeleted={setDeletedCount}
+        onDeleted={finishDelete}
       />
     );
   }
@@ -310,8 +322,9 @@ export default function SwipeScreen({
           onPress: async () => {
             try {
               // The phone asks once more, then the photos go to "Recently Deleted".
+              const bytes = await totalSize(marked);
               const ok = await MediaLibrary.deleteAssetsAsync(marked.map((p) => p.id));
-              if (ok) setDeletedCount(n);
+              if (ok) finishDelete(n, bytes);
             } catch {
               // Tapped "Don't Allow" on the phone's question: nothing deleted, keep swiping.
             }
@@ -524,6 +537,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     bottom: 40,
     borderColor: colors.unsure,
+  },
+  freedEmoji: {
+    fontSize: 56,
+    marginBottom: 8,
+  },
+  freedTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: colors.keep,
+    textAlign: 'center',
   },
   doneScreen: {
     flex: 1,
