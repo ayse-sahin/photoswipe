@@ -254,7 +254,7 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
                 styles.card,
                 isTop
                   ? { transform: [{ translateX: pos.x }, { translateY: pos.y }, { rotate }] }
-                  : { transform: [{ scale: 0.95 }] },
+                  : null,
               ]}
             >
               <PhotoThumb asset={photo} style={styles.photo} contentFit="contain" />
@@ -279,8 +279,8 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
       </View>
 
       <View style={styles.actions}>
-        <RoundButton label="↺" color="#6b7280" small onPress={undo} disabled={index === 0} />
         <RoundButton label="✕" color="#dc2626" onPress={() => decideRef.current('delete')} />
+        <RoundButton label="↺" color="#6b7280" small onPress={undo} disabled={index === 0} />
         <RoundButton label="?" color="#d97706" small onPress={() => decideRef.current('undecided')} />
         <RoundButton label="✓" color="#16a34a" onPress={() => decideRef.current('keep')} />
       </View>
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#000',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',

@@ -127,7 +127,7 @@ function HomeScreen() {
       <StatusBar style="auto" />
       <View style={styles.header}>
         <Text style={styles.title}>Galeri</Text>
-        <Text style={styles.note}>Version: step 4, update 1</Text>
+        <Text style={styles.note}>Version: step 4, update 2</Text>
         {permission.accessPrivileges === 'limited' && (
           <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
         )}
