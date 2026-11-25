@@ -6,6 +6,7 @@ import {
   Dimensions,
   FlatList,
   Linking,
+  Pressable,
   StyleSheet,
   Switch,
   Text,
@@ -15,6 +16,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateField from './src/DateField';
 import Button from './src/Button';
 import PhotoThumb from './src/PhotoThumb';
+import { colors } from './src/theme';
 import GroupsScreen from './src/GroupsScreen';
 import SwipeScreen from './src/SwipeScreen';
 import { loadPhotos } from './src/photos';
@@ -31,6 +33,7 @@ function daysAgo(n: number): Date {
 export default function App() {
   return (
     <SafeAreaProvider>
+      <StatusBar style="light" />
       <HomeScreen />
     </SafeAreaProvider>
   );
@@ -91,7 +94,7 @@ function HomeScreen() {
   if (!permission) {
     return (
       <Centered>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </Centered>
     );
   }
@@ -145,73 +148,130 @@ function HomeScreen() {
   }
 
   // 5. Pick dates, then show the photos from that range
-  return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar style="auto" />
-      <View style={styles.header}>
-        <Text style={styles.title}>Galeri</Text>
-        <Text style={styles.note}>Version: step 6, update 6</Text>
-        {permission.accessPrivileges === 'limited' && (
-          <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
-        )}
+  const header = (
+    <View style={styles.header}>
+      <Text style={styles.title}>
+        Galeri<Text style={{ color: colors.accent }}>.</Text>
+      </Text>
+      <Text style={styles.tagline}>Swipe your camera roll clean.</Text>
+      {permission.accessPrivileges === 'limited' && (
+        <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
+      )}
 
-        <DateField
-          label="Start date"
-          value={startDate}
-          maximumDate={rangeEnd}
-          onChange={setStartDate}
-        />
+      <View style={styles.card}>
+        <DateField label="From" value={startDate} maximumDate={rangeEnd} onChange={setStartDate} />
+        <View style={styles.divider} />
         <View style={styles.row}>
-          <Text style={styles.label}>Choose an end date</Text>
-          <Switch value={useEndDate} onValueChange={setUseEndDate} />
+          <Text style={styles.label}>Until</Text>
+          <View style={styles.untilRight}>
+            {!useEndDate && <Text style={styles.today}>Today</Text>}
+            <Switch
+              value={useEndDate}
+              onValueChange={setUseEndDate}
+              trackColor={{ true: colors.accent, false: colors.surfaceHigh }}
+            />
+          </View>
         </View>
-        {useEndDate ? (
+        {useEndDate && (
           <DateField
-            label="End date"
+            label=""
             value={endDate}
             minimumDate={startDate}
             maximumDate={new Date()}
             onChange={setEndDate}
           />
-        ) : (
-          <Text style={styles.note}>Showing photos up to today.</Text>
-        )}
-
-        <Button label="Find photos" onPress={findPhotos} disabled={loading} />
-
-        {error && <Text style={styles.error}>Something went wrong: {error}</Text>}
-        {photos && (
-          <Text style={styles.count}>
-            {totalCount === 0
-              ? 'No photos in this range.'
-              : `${totalCount} photo${totalCount === 1 ? '' : 's'} found`}
-          </Text>
-        )}
-        {photos && totalCount > 0 && (
-          <>
-            <Button label="Start swiping" onPress={() => setMode('swipe')} />
-            <Button label="Pick the best shot" onPress={() => setMode('best')} variant="secondary" />
-          </>
         )}
       </View>
 
+      <Button label="Find photos" onPress={findPhotos} disabled={loading} />
+
+      {error && <Text style={styles.error}>Something went wrong: {error}</Text>}
+      {photos && (
+        <View style={styles.statRow}>
+          <Text style={styles.statNumber}>{totalCount}</Text>
+          <Text style={styles.statLabel}>
+            {totalCount === 1 ? 'photo' : 'photos'} in this range
+          </Text>
+        </View>
+      )}
+      {photos && totalCount > 0 && (
+        <View style={styles.actions}>
+          <ActionCard
+            icon="⇆"
+            title="Swipe"
+            subtitle="Go through them one by one"
+            onPress={() => setMode('swipe')}
+            highlight
+          />
+          <ActionCard
+            icon="✦"
+            title="Best shot"
+            subtitle="Pick from similar photos"
+            onPress={() => setMode('best')}
+          />
+        </View>
+      )}
+      {photos && totalCount > 0 && <Text style={styles.section}>In this range</Text>}
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
+      <StatusBar style="light" />
       <FlatList
+        ListHeaderComponent={header}
         data={photos ?? []}
         keyExtractor={(item) => item.id}
         numColumns={COLUMNS}
         renderItem={({ item }) => <PhotoThumb asset={item} style={styles.tile} small />}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} /> : undefined}
+        ListFooterComponent={
+          <View>
+            {loading && <ActivityIndicator color={colors.accent} style={{ margin: 16 }} />}
+            <Text style={styles.version}>Version: step 7, design 1</Text>
+          </View>
+        }
       />
     </SafeAreaView>
+  );
+}
+
+function ActionCard({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  highlight,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  highlight?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.action,
+        highlight && styles.actionHighlight,
+        pressed && { opacity: 0.75 },
+      ]}
+    >
+      <Text style={[styles.actionIcon, highlight && { color: '#fff' }]}>{icon}</Text>
+      <Text style={styles.actionTitle}>{title}</Text>
+      <Text style={[styles.actionSub, highlight && { color: 'rgba(255,255,255,0.8)' }]}>
+        {subtitle}
+      </Text>
+    </Pressable>
   );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
     <View style={styles.centered}>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
       {children}
     </View>
   );
@@ -220,59 +280,145 @@ function Centered({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   centered: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 8,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontSize: 44,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -1,
+  },
+  tagline: {
+    fontSize: 16,
+    color: colors.muted,
+    marginTop: 2,
+    marginBottom: 20,
   },
   body: {
     fontSize: 16,
     textAlign: 'center',
-    color: '#333',
-    marginBottom: 16,
+    color: colors.muted,
+    marginVertical: 16,
+    lineHeight: 22,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
+  },
+  untilRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  today: {
+    fontSize: 16,
+    color: colors.muted,
   },
   label: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
   },
   note: {
     fontSize: 13,
-    color: '#888',
-    marginBottom: 4,
+    color: colors.muted,
+    marginBottom: 8,
   },
   error: {
-    color: '#c00',
+    color: colors.delete,
     marginTop: 8,
   },
-  count: {
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 24,
+  },
+  statNumber: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  statLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    color: colors.muted,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 12,
+  },
+  action: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  actionHighlight: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  actionIcon: {
+    fontSize: 26,
+    color: colors.accent,
+    marginBottom: 14,
+  },
+  actionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  actionSub: {
+    fontSize: 13,
+    color: colors.muted,
+    marginTop: 4,
+  },
+  section: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.faint,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 28,
+    marginBottom: 4,
   },
   tile: {
     width: TILE,
     height: TILE,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: colors.bg,
+  },
+  version: {
+    fontSize: 11,
+    color: colors.faint,
+    textAlign: 'center',
+    marginVertical: 24,
   },
 });

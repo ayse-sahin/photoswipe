@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
+import { colors } from './theme';
 import SwipeScreen from './SwipeScreen';
 import { groupPhotos, PhotoGroup, prepareFingerprints } from './grouping';
 import { loadAllPhotos } from './photos';
@@ -159,7 +160,7 @@ const COLLAGE = 88;
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   header: {
     paddingHorizontal: 16,
@@ -168,16 +169,17 @@ const styles = StyleSheet.create({
   },
   link: {
     fontSize: 17,
-    color: '#2563eb',
+    color: colors.accent,
   },
   title: {
+    color: colors.text,
     fontSize: 28,
     fontWeight: '700',
     marginTop: 8,
   },
   sub: {
     fontSize: 15,
-    color: '#555',
+    color: colors.muted,
     marginTop: 8,
     textAlign: 'left',
   },
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   error: {
-    color: '#c00',
+    color: colors.delete,
     textAlign: 'center',
   },
   list: {
@@ -201,7 +203,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 10,
     borderRadius: 14,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surface,
   },
   collage: {
     width: COLLAGE,
@@ -210,29 +212,30 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: colors.photoBg,
   },
   collageTile: {
     width: COLLAGE,
     height: COLLAGE,
   },
   rowTitle: {
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
   },
   rowSub: {
     fontSize: 14,
-    color: '#555',
+    color: colors.muted,
     marginTop: 2,
   },
   done: {
     fontSize: 14,
-    color: '#16a34a',
+    color: colors.keep,
     fontWeight: '600',
     marginTop: 4,
   },
   arrow: {
     fontSize: 28,
-    color: '#9ca3af',
+    color: colors.faint,
   },
 });

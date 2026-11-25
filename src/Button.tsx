@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors } from './theme';
 
 type Props = {
   label: string;
@@ -27,25 +28,25 @@ export default function Button({ label, onPress, disabled, variant = 'primary' }
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 12,
+    backgroundColor: colors.accent,
+    paddingVertical: 15,
     paddingHorizontal: 24,
-    borderRadius: 10,
+    borderRadius: 14,
     alignItems: 'center',
     marginTop: 12,
   },
   secondary: {
-    backgroundColor: '#eef1f5',
+    backgroundColor: colors.surfaceHigh,
   },
   danger: {
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.delete,
   },
   text: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   secondaryText: {
-    color: '#1f2937',
+    color: colors.text,
   },
 });

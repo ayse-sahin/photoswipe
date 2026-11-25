@@ -3,6 +3,7 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import { useEffect, useState } from 'react';
 import { ImageStyle, Platform, StyleProp, View } from 'react-native';
 import { previewCache } from './grouping';
+import { colors } from './theme';
 
 // Remembers each photo's file address so a photo shown twice (for example the
 // next card becoming the current card) appears instantly the second time.
@@ -42,7 +43,7 @@ export default function PhotoThumb({ asset, style, contentFit = 'cover', small }
     };
   }, [asset.id]);
 
-  if (!uri) return <View style={[style as object, { backgroundColor: '#e5e7eb' }]} />;
+  if (!uri) return <View style={[style as object, { backgroundColor: colors.surfaceHigh }]} />;
   return (
     <Image
       source={{ uri }}

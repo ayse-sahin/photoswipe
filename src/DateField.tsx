@@ -1,5 +1,6 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors } from './theme';
 
 type Props = {
   label: string;
@@ -25,7 +26,7 @@ export default function DateField({ label, value, onChange, minimumDate, maximum
       });
     return (
       <View style={styles.row}>
-        <Text style={styles.label}>{label}</Text>
+        {label ? <Text style={styles.label}>{label}</Text> : <View />}
         <Pressable style={styles.androidButton} onPress={open}>
           <Text style={styles.androidButtonText}>{value.toLocaleDateString()}</Text>
         </Pressable>
@@ -35,11 +36,13 @@ export default function DateField({ label, value, onChange, minimumDate, maximum
 
   return (
     <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
+      {label ? <Text style={styles.label}>{label}</Text> : <View />}
       <DateTimePicker
         value={value}
         mode="date"
         display="compact"
+        themeVariant="dark"
+        accentColor={colors.accent}
         minimumDate={minimumDate}
         maximumDate={maximumDate}
         onChange={(_event, date) => {
@@ -59,15 +62,16 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
   },
   androidButton: {
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: '#eef1f5',
+    backgroundColor: colors.surfaceHigh,
   },
   androidButtonText: {
     fontSize: 16,
+    color: colors.text,
   },
 });

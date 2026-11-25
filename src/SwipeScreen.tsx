@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
+import { colors } from './theme';
 import ReviewScreen from './ReviewScreen';
 import { loadAllPhotos } from './photos';
 
@@ -216,9 +217,9 @@ export default function SwipeScreen({
       <SafeAreaView style={styles.doneScreen}>
         <Text style={styles.title}>{undecided > 0 ? 'Almost done!' : 'All done!'}</Text>
         <View style={styles.summary}>
-          <SummaryRow emoji="✓" color="#16a34a" label="Keep" count={kept} />
-          <SummaryRow emoji="✕" color="#dc2626" label="Delete" count={toDelete} />
-          <SummaryRow emoji="?" color="#d97706" label="Undecided" count={undecided} />
+          <SummaryRow emoji="✓" color={colors.keep} label="Keep" count={kept} />
+          <SummaryRow emoji="✕" color={colors.delete} label="Delete" count={toDelete} />
+          <SummaryRow emoji="?" color={colors.unsure} label="Undecided" count={undecided} />
         </View>
 
         {undecided > 0 && (
@@ -343,15 +344,15 @@ export default function SwipeScreen({
               {isTop && (
                 <>
                   <Animated.View style={[styles.stamp, styles.keepStamp, { opacity: keepOpacity }]}>
-                    <Text style={[styles.stampText, { color: '#16a34a' }]}>KEEP</Text>
+                    <Text style={[styles.stampText, { color: colors.keep }]}>KEEP</Text>
                   </Animated.View>
                   <Animated.View
                     style={[styles.stamp, styles.deleteStamp, { opacity: deleteOpacity }]}
                   >
-                    <Text style={[styles.stampText, { color: '#dc2626' }]}>DELETE</Text>
+                    <Text style={[styles.stampText, { color: colors.delete }]}>DELETE</Text>
                   </Animated.View>
                   <Animated.View style={[styles.stamp, styles.laterStamp, { opacity: laterOpacity }]}>
-                    <Text style={[styles.stampText, { color: '#d97706' }]}>NOT SURE</Text>
+                    <Text style={[styles.stampText, { color: colors.unsure }]}>NOT SURE</Text>
                   </Animated.View>
                 </>
               )}
@@ -361,10 +362,10 @@ export default function SwipeScreen({
       </View>
 
       <View style={styles.actions}>
-        <RoundButton label="✕" color="#dc2626" onPress={() => decideRef.current('delete')} />
-        <RoundButton label="↺" color="#6b7280" small onPress={undo} disabled={index === 0} />
-        <RoundButton label="?" color="#d97706" small onPress={() => decideRef.current('undecided')} />
-        <RoundButton label="✓" color="#16a34a" onPress={() => decideRef.current('keep')} />
+        <RoundButton label="✕" color={colors.delete} onPress={() => decideRef.current('delete')} />
+        <RoundButton label="↺" color={colors.muted} small onPress={undo} disabled={index === 0} />
+        <RoundButton label="?" color={colors.unsure} small onPress={() => decideRef.current('undecided')} />
+        <RoundButton label="✓" color={colors.keep} onPress={() => decideRef.current('keep')} />
       </View>
       <Text style={styles.hint}>Left: delete · Up: not sure · Right: keep</Text>
     </SafeAreaView>
@@ -427,16 +428,17 @@ function RoundButton({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.bg,
   },
   centered: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
   title: {
+    color: colors.text,
     fontSize: 32,
     fontWeight: '700',
     marginBottom: 16,
@@ -445,13 +447,13 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 16,
     textAlign: 'center',
-    color: '#333',
+    color: colors.muted,
     marginTop: 12,
   },
   note: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#888',
+    color: colors.muted,
     marginTop: 8,
   },
   topBar: {
@@ -465,26 +467,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.border,
   },
   exitText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111',
+    color: colors.text,
   },
   link: {
     fontSize: 17,
-    color: '#2563eb',
+    color: colors.accent,
   },
   progress: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
   counts: {
     fontSize: 15,
-    color: '#555',
+    color: colors.muted,
   },
   deck: {
     flex: 1,
@@ -496,7 +499,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#000',
+    backgroundColor: colors.photoBg,
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -508,16 +511,16 @@ const styles = StyleSheet.create({
   laterStamp: {
     alignSelf: 'center',
     bottom: 40,
-    borderColor: '#d97706',
+    borderColor: colors.unsure,
   },
   doneScreen: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
     padding: 24,
     justifyContent: 'center',
   },
   summary: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 4,
     paddingHorizontal: 16,
@@ -534,10 +537,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   summaryLabel: {
+    color: colors.text,
     flex: 1,
     fontSize: 17,
   },
   summaryCount: {
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -546,7 +551,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 2,
-    borderColor: '#d97706',
+    borderColor: colors.unsure,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
@@ -558,24 +563,25 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.surfaceHigh,
   },
   groupThumb: {
     width: 32,
     height: 32,
   },
   groupTitle: {
+    color: colors.text,
     fontSize: 17,
     fontWeight: '700',
   },
   groupSub: {
     fontSize: 14,
-    color: '#555',
+    color: colors.muted,
     marginTop: 2,
   },
   groupArrow: {
     fontSize: 28,
-    color: '#d97706',
+    color: colors.unsure,
   },
   photo: {
     width: '100%',
@@ -587,18 +593,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   keepStamp: {
     top: 32,
     left: 24,
-    borderColor: '#16a34a',
+    borderColor: colors.keep,
     transform: [{ rotate: '-15deg' }],
   },
   deleteStamp: {
     top: 32,
     right: 24,
-    borderColor: '#dc2626',
+    borderColor: colors.delete,
     transform: [{ rotate: '15deg' }],
   },
   stampText: {
@@ -613,14 +619,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   round: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   hint: {
     textAlign: 'center',
-    color: '#888',
+    color: colors.muted,
     fontSize: 13,
     paddingBottom: 8,
   },

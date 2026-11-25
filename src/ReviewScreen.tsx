@@ -4,6 +4,7 @@ import { Dimensions, FlatList, Pressable, StyleSheet, Text, View } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
+import { colors } from './theme';
 
 type Props = {
   photos: MediaLibrary.Asset[];
@@ -88,7 +89,7 @@ export default function ReviewScreen({ photos, onKeep, onBack, onDeleted }: Prop
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   header: {
     paddingHorizontal: 16,
@@ -97,16 +98,17 @@ const styles = StyleSheet.create({
   },
   link: {
     fontSize: 17,
-    color: '#2563eb',
+    color: colors.accent,
   },
   title: {
+    color: colors.text,
     fontSize: 28,
     fontWeight: '700',
     marginTop: 8,
   },
   sub: {
     fontSize: 15,
-    color: '#555',
+    color: colors.muted,
     marginTop: 4,
   },
   tileWrap: {
@@ -117,7 +119,7 @@ const styles = StyleSheet.create({
     width: TILE,
     height: TILE,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: colors.bg,
   },
   badge: {
     position: 'absolute',
@@ -126,27 +128,27 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.delete,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
   },
   footer: {
     padding: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ddd',
+    borderTopColor: colors.border,
   },
   note: {
     fontSize: 13,
-    color: '#888',
+    color: colors.muted,
     textAlign: 'center',
   },
   error: {
-    color: '#c00',
+    color: colors.delete,
     textAlign: 'center',
     marginBottom: 8,
   },
