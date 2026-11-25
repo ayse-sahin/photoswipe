@@ -4,93 +4,147 @@ import { decode as decodeJpeg } from 'jpeg-js';
 
 // How we find similar photos, all on the phone:
 // 1. Photos taken close together in time are candidates (bursts, retakes).
-// 2. For those, we shrink each photo to a tiny 9x8 grey picture and turn it into
-//    a 64-bit "fingerprint" (a difference hash). Photos that look alike have
-//    fingerprints that differ in only a few bits.
-// 3. Neighbouring photos with close fingerprints go into the same group.
+// 2. For each candidate we make a small preview, then shrink that to a tiny 9x8
+//    grey picture and turn it into a 64-bit "fingerprint" (a difference hash).
+//    Photos that look alike have fingerprints that differ in only a few bits.
+// 3. A photo joins a group if it looks like ANY photo already in the group.
+// 4. Groups next to each other that look alike are merged.
 
-// Photos taken at most this far apart can be in the same group.
-const MAX_GAP_MS = 60 * 1000;
-// Fingerprints differing in at most this many of 64 bits count as "looking alike".
-const MAX_DISTANCE = 14;
+export type GroupSize = 'small' | 'medium' | 'large';
 
-export type PhotoGroup = Extract<DeckItem, { kind: 'group' }>;
+// maxGapMs: photos further apart in time than this never share a group.
+// maxDistance: how many of the 64 fingerprint bits may differ for "looks alike".
+const SETTINGS: Record<GroupSize, { maxGapMs: number; maxDistance: number }> = {
+  small: { maxGapMs: 60 * 1000, maxDistance: 12 },
+  medium: { maxGapMs: 5 * 60 * 1000, maxDistance: 20 },
+  large: { maxGapMs: 15 * 60 * 1000, maxDistance: 26 },
+};
+// The widest time window of any setting; we fingerprint everything inside it once,
+// so switching between Small / Medium / Large is instant.
+const WIDEST_GAP_MS = Math.max(...Object.values(SETTINGS).map((s) => s.maxGapMs));
 
 export type DeckItem =
   | { kind: 'photo'; key: string; asset: MediaLibrary.Asset }
   | { kind: 'group'; key: string; assets: MediaLibrary.Asset[] };
+export type PhotoGroup = Extract<DeckItem, { kind: 'group' }>;
 
-// Fingerprints already worked out, so regrouping (e.g. the undecided round) is instant.
-const hashCache = new Map<string, Uint8Array | null>();
+type Fingerprint = Uint8Array | null;
+// Fingerprints already worked out, kept while the app is open.
+const hashCache = new Map<string, Fingerprint>();
+// Small preview files made while fingerprinting, used for thumbnails.
+export const previewCache = new Map<string, string>();
 
-export async function groupPhotos(
+// Works out fingerprints for every photo that has a neighbour within the widest
+// time window. Slow the first time, instant after that.
+export async function prepareFingerprints(
   photos: MediaLibrary.Asset[],
   onProgress?: (done: number, total: number) => void,
-): Promise<DeckItem[]> {
-  // Step 1: split into runs of photos taken close together.
-  const runs: MediaLibrary.Asset[][] = [];
-  for (const photo of photos) {
-    const run = runs[runs.length - 1];
-    const prev = run?.[run.length - 1];
-    if (prev && Math.abs(prev.creationTime - photo.creationTime) <= MAX_GAP_MS) run.push(photo);
-    else runs.push([photo]);
-  }
+): Promise<void> {
+  const candidates = photos.filter((p, i) => {
+    const prev = photos[i - 1];
+    const next = photos[i + 1];
+    const near = (o?: MediaLibrary.Asset) =>
+      !!o && Math.abs(o.creationTime - p.creationTime) <= WIDEST_GAP_MS;
+    return near(prev) || near(next);
+  });
+  const todo = candidates.filter((p) => !hashCache.has(p.id));
+  let done = candidates.length - todo.length;
+  onProgress?.(done, candidates.length);
 
-  // Step 2: fingerprint only photos that have a close-in-time neighbour.
-  const candidates = runs.filter((r) => r.length > 1).flat();
-  let done = 0;
-  onProgress?.(0, candidates.length);
-  // A few at a time, so it's faster without overloading the phone.
+  // Two at a time: faster than one, without using too much memory.
   let next = 0;
   const worker = async () => {
-    while (next < candidates.length) {
-      const photo = candidates[next++];
-      if (!hashCache.has(photo.id)) hashCache.set(photo.id, await fingerprint(photo));
+    while (next < todo.length) {
+      const photo = todo[next++];
+      hashCache.set(photo.id, await fingerprint(photo));
       done++;
       if (done % 5 === 0 || done === candidates.length) onProgress?.(done, candidates.length);
     }
   };
-  await Promise.all([worker(), worker(), worker(), worker()]);
-
-  // Step 3: inside each run, keep neighbours together while they look alike.
-  const items: DeckItem[] = [];
-  for (const run of runs) {
-    let group: MediaLibrary.Asset[] = [];
-    const flush = () => {
-      if (group.length === 1) items.push({ kind: 'photo', key: group[0].id, asset: group[0] });
-      else if (group.length > 1) items.push({ kind: 'group', key: 'group:' + group[0].id, assets: group });
-      group = [];
-    };
-    for (const photo of run) {
-      const prev = group[group.length - 1];
-      if (prev && !alike(hashCache.get(prev.id), hashCache.get(photo.id))) flush();
-      group.push(photo);
-    }
-    flush();
-  }
-  return items;
+  await Promise.all([worker(), worker()]);
 }
 
-function alike(a: Uint8Array | null | undefined, b: Uint8Array | null | undefined): boolean {
-  if (!a || !b) return false;
-  let distance = 0;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) distance++;
-  return distance <= MAX_DISTANCE;
+// Groups photos (sorted newest first) using fingerprints from prepareFingerprints.
+export function groupPhotos(photos: MediaLibrary.Asset[], size: GroupSize): DeckItem[] {
+  const { maxGapMs, maxDistance } = SETTINGS[size];
+  const alike = (a: MediaLibrary.Asset, b: MediaLibrary.Asset) =>
+    distance(hashCache.get(a.id), hashCache.get(b.id)) <= maxDistance;
+  const close = (a: MediaLibrary.Asset, b: MediaLibrary.Asset) =>
+    Math.abs(a.creationTime - b.creationTime) <= maxGapMs;
+
+  // Steps 1 and 3: walk through the photos; a photo joins a recent group if it's
+  // close in time and looks like any photo in that group. We look back a few
+  // groups, so one odd photo in the middle of a burst doesn't split it.
+  let groups: MediaLibrary.Asset[][] = [];
+  for (const photo of photos) {
+    let home: MediaLibrary.Asset[] | undefined;
+    for (let i = groups.length - 1; i >= Math.max(0, groups.length - 4); i--) {
+      const g = groups[i];
+      if (!close(g[g.length - 1], photo)) break;
+      if (g.some((m) => alike(m, photo))) {
+        home = g;
+        break;
+      }
+    }
+    if (home) home.push(photo);
+    else groups.push([photo]);
+  }
+
+  // Step 4: merge neighbouring groups that are close in time and look alike.
+  let merged = true;
+  while (merged) {
+    merged = false;
+    const out: MediaLibrary.Asset[][] = [];
+    for (const group of groups) {
+      const prev = out[out.length - 1];
+      if (
+        prev &&
+        prev.some((a) => group.some((b) => close(a, b))) &&
+        prev.some((a) => group.some((b) => alike(a, b)))
+      ) {
+        prev.push(...group);
+        merged = true;
+      } else out.push(group);
+    }
+    groups = out;
+  }
+
+  return groups.map((g) =>
+    g.length === 1
+      ? { kind: 'photo', key: g[0].id, asset: g[0] }
+      : { kind: 'group', key: 'group:' + g[0].id, assets: g },
+  );
+}
+
+function distance(a: Fingerprint | undefined, b: Fingerprint | undefined): number {
+  if (!a || !b) return Infinity;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d;
 }
 
 // Returns 64 bits (one per array entry, 0 or 1), or null if the photo can't be read
 // (for example when it's only stored in iCloud).
-async function fingerprint(photo: MediaLibrary.Asset): Promise<Uint8Array | null> {
+async function fingerprint(photo: MediaLibrary.Asset): Promise<Fingerprint> {
   try {
     const info = await MediaLibrary.getAssetInfoAsync(photo, { shouldDownloadFromNetwork: false });
     const uri = info.localUri ?? (photo.uri.startsWith('file:') ? photo.uri : null);
     if (!uri) return null;
 
-    const context = ImageManipulator.manipulate(uri).resize({ width: 9, height: 8 });
-    const image = await context.renderAsync();
-    const result = await image.saveAsync({ format: SaveFormat.JPEG, compress: 1, base64: true });
-    context.release();
-    image.release();
+    // A small preview first (also used for thumbnails), so the big photo is
+    // only opened once and then let go.
+    const big = ImageManipulator.manipulate(uri).resize({ width: 240 });
+    const bigRef = await big.renderAsync();
+    const preview = await bigRef.saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
+    big.release();
+    bigRef.release();
+    previewCache.set(photo.id, preview.uri);
+
+    const tiny = ImageManipulator.manipulate(preview.uri).resize({ width: 9, height: 8 });
+    const tinyRef = await tiny.renderAsync();
+    const result = await tinyRef.saveAsync({ format: SaveFormat.JPEG, compress: 1, base64: true });
+    tiny.release();
+    tinyRef.release();
     if (!result.base64) return null;
 
     const { data, width, height } = decodeJpeg(base64ToBytes(result.base64), {
@@ -133,4 +187,4 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 // Exposed for testing.
-export const _test = { base64ToBytes, alike };
+export const _test = { hashCache, distance };

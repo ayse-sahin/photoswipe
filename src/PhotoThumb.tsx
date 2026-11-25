@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useEffect, useState } from 'react';
 import { ImageStyle, Platform, StyleProp, View } from 'react-native';
+import { previewCache } from './grouping';
 
 // Remembers each photo's file address so a photo shown twice (for example the
 // next card becoming the current card) appears instantly the second time.
@@ -11,18 +12,21 @@ type Props = {
   asset: MediaLibrary.Asset;
   style: StyleProp<ImageStyle>;
   contentFit?: 'cover' | 'contain';
+  // Small tiles: use the small preview file if we already made one (saves memory).
+  small?: boolean;
 };
 
 // On iPhone, gallery photos have "ph://" addresses that the image viewer in
 // Expo Go can't always open. So we ask the photo library for the photo's real
 // file on the phone ("file://...") and show that instead.
-export default function PhotoThumb({ asset, style, contentFit = 'cover' }: Props) {
+export default function PhotoThumb({ asset, style, contentFit = 'cover', small }: Props) {
+  const preview = small ? previewCache.get(asset.id) : undefined;
   const [uri, setUri] = useState<string | null>(
-    Platform.OS === 'ios' ? (localUriCache.get(asset.id) ?? null) : asset.uri,
+    preview ?? (Platform.OS === 'ios' ? (localUriCache.get(asset.id) ?? null) : asset.uri),
   );
 
   useEffect(() => {
-    if (Platform.OS !== 'ios' || localUriCache.has(asset.id)) return;
+    if (preview || Platform.OS !== 'ios' || localUriCache.has(asset.id)) return;
     let cancelled = false;
     MediaLibrary.getAssetInfoAsync(asset, { shouldDownloadFromNetwork: false })
       .then((info) => {

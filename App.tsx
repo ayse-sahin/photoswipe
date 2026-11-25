@@ -150,7 +150,7 @@ function HomeScreen() {
       <StatusBar style="auto" />
       <View style={styles.header}>
         <Text style={styles.title}>Galeri</Text>
-        <Text style={styles.note}>Version: step 6, update 1</Text>
+        <Text style={styles.note}>Version: step 6, update 2</Text>
         {permission.accessPrivileges === 'limited' && (
           <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
         )}
@@ -199,7 +199,7 @@ function HomeScreen() {
         data={photos ?? []}
         keyExtractor={(item) => item.id}
         numColumns={COLUMNS}
-        renderItem={({ item }) => <PhotoThumb asset={item} style={styles.tile} />}
+        renderItem={({ item }) => <PhotoThumb asset={item} style={styles.tile} small />}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} /> : undefined}

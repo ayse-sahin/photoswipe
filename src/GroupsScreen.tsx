@@ -1,11 +1,11 @@
 import * as MediaLibrary from 'expo-media-library/legacy';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
 import SwipeScreen from './SwipeScreen';
-import { groupPhotos, PhotoGroup } from './grouping';
+import { GroupSize, groupPhotos, PhotoGroup, prepareFingerprints } from './grouping';
 import { loadAllPhotos } from './photos';
 
 type Props = {
@@ -19,7 +19,9 @@ type Props = {
 // "Pick the best shot": a list of groups of similar photos. Tap a group to
 // swipe through only those photos.
 export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
-  const [groups, setGroups] = useState<PhotoGroup[] | null>(null);
+  const [photos, setPhotos] = useState<MediaLibrary.Asset[] | null>(null);
+  const [ready, setReady] = useState(false);
+  const [size, setSize] = useState<GroupSize>('medium');
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<PhotoGroup | null>(null);
@@ -27,16 +29,26 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
   const [finished, setFinished] = useState<Set<string>>(new Set());
 
   async function load() {
-    setGroups(null);
+    setReady(false);
     setProgress(null);
     try {
-      const photos = await loadAllPhotos(from, to);
-      const items = await groupPhotos(photos, (done, total) => setProgress({ done, total }));
-      setGroups(items.filter((i): i is PhotoGroup => i.kind === 'group'));
+      const all = await loadAllPhotos(from, to);
+      await prepareFingerprints(all, (done, total) => setProgress({ done, total }));
+      setPhotos(all);
+      setReady(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }
+
+  // Regrouping is instant once fingerprints are ready, so the size switch is live.
+  const groups = useMemo(
+    () =>
+      ready && photos
+        ? groupPhotos(photos, size).filter((i): i is PhotoGroup => i.kind === 'group')
+        : null,
+    [ready, photos, size],
+  );
 
   useEffect(() => {
     load();
@@ -69,6 +81,24 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
           <Text style={styles.link}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>Pick the best shot</Text>
+        {groups && (
+          <View style={styles.sizeRow}>
+            <Text style={styles.sizeLabel}>Group size</Text>
+            <View style={styles.segment}>
+              {(['small', 'medium', 'large'] as GroupSize[]).map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={() => setSize(s)}
+                  style={[styles.segmentItem, size === s && styles.segmentActive]}
+                >
+                  <Text style={[styles.segmentText, size === s && styles.segmentTextActive]}>
+                    {s[0].toUpperCase() + s.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
         {groups && (
           <Text style={styles.sub}>
             {groups.length === 0
@@ -126,7 +156,7 @@ function GroupRow({
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
       <View style={styles.collage}>
         {group.assets.slice(0, 4).map((p) => (
-          <PhotoThumb key={p.id} asset={p} style={styles.collageTile} />
+          <PhotoThumb key={p.id} asset={p} style={styles.collageTile} small />
         ))}
       </View>
       <View style={{ flex: 1 }}>
@@ -217,6 +247,42 @@ const styles = StyleSheet.create({
     color: '#16a34a',
     fontWeight: '600',
     marginTop: 4,
+  },
+  sizeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  sizeLabel: {
+    fontSize: 15,
+    color: '#333',
+  },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: '#eef1f5',
+    borderRadius: 10,
+    padding: 3,
+  },
+  segmentItem: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  segmentActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  segmentText: {
+    fontSize: 14,
+    color: '#555',
+  },
+  segmentTextActive: {
+    color: '#111',
+    fontWeight: '600',
   },
   arrow: {
     fontSize: 28,

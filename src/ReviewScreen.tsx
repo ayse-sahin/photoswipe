@@ -58,7 +58,7 @@ export default function ReviewScreen({ photos, onKeep, onBack, onDeleted }: Prop
         numColumns={COLUMNS}
         renderItem={({ item }) => (
           <Pressable onPress={() => onKeep(item.id)} style={styles.tileWrap}>
-            <PhotoThumb asset={item} style={styles.tile} />
+            <PhotoThumb asset={item} style={styles.tile} small />
             <View style={styles.badge}>
               <Text style={styles.badgeText}>✕</Text>
             </View>

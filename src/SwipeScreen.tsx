@@ -227,7 +227,7 @@ export default function SwipeScreen({
           >
             <View style={styles.groupThumbs}>
               {undecidedPhotos.slice(0, 4).map((p) => (
-                <PhotoThumb key={p.id} asset={p} style={styles.groupThumb} />
+                <PhotoThumb key={p.id} asset={p} style={styles.groupThumb} small />
               ))}
             </View>
             <View style={{ flex: 1 }}>
