@@ -14,6 +14,8 @@ const MAX_GAP_MS = 60 * 1000;
 // Fingerprints differing in at most this many of 64 bits count as "looking alike".
 const MAX_DISTANCE = 14;
 
+export type PhotoGroup = Extract<DeckItem, { kind: 'group' }>;
+
 export type DeckItem =
   | { kind: 'photo'; key: string; asset: MediaLibrary.Asset }
   | { kind: 'group'; key: string; assets: MediaLibrary.Asset[] };

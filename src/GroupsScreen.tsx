@@ -1,0 +1,225 @@
+import * as MediaLibrary from 'expo-media-library/legacy';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Button from './Button';
+import PhotoThumb from './PhotoThumb';
+import SwipeScreen from './SwipeScreen';
+import { groupPhotos, PhotoGroup } from './grouping';
+import { loadAllPhotos } from './photos';
+
+type Props = {
+  from: Date;
+  to: Date;
+  onClose: () => void;
+  // Called after photos were deleted, so the start screen can refresh.
+  onDeleted: () => void;
+};
+
+// "Pick the best shot": a list of groups of similar photos. Tap a group to
+// swipe through only those photos.
+export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
+  const [groups, setGroups] = useState<PhotoGroup[] | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState<PhotoGroup | null>(null);
+  // Groups you've already swiped through, so they get a ✓.
+  const [finished, setFinished] = useState<Set<string>>(new Set());
+
+  async function load() {
+    setGroups(null);
+    setProgress(null);
+    try {
+      const photos = await loadAllPhotos(from, to);
+      const items = await groupPhotos(photos, (done, total) => setProgress({ done, total }));
+      setGroups(items.filter((i): i is PhotoGroup => i.kind === 'group'));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  if (open) {
+    return (
+      <SwipeScreen
+        photos={open.assets}
+        closeLabel="Back to groups"
+        onClose={() => {
+          setFinished((f) => new Set(f).add(open.key));
+          setOpen(null);
+        }}
+        onDeleted={() => {
+          // Some photos are gone now, so find the groups again.
+          setOpen(null);
+          setFinished(new Set());
+          onDeleted();
+          load();
+        }}
+      />
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.header}>
+        <Pressable onPress={onClose} hitSlop={12}>
+          <Text style={styles.link}>‹ Back</Text>
+        </Pressable>
+        <Text style={styles.title}>Pick the best shot</Text>
+        {groups && (
+          <Text style={styles.sub}>
+            {groups.length === 0
+              ? 'No similar photos found in these dates.'
+              : `${groups.length} group${groups.length === 1 ? '' : 's'} of similar photos. Tap one to swipe through it.`}
+          </Text>
+        )}
+      </View>
+
+      {error ? (
+        <View style={styles.centered}>
+          <Text style={styles.error}>Something went wrong: {error}</Text>
+          <Button label="Back" onPress={onClose} />
+        </View>
+      ) : !groups ? (
+        <View style={styles.centered}>
+          <ActivityIndicator />
+          <Text style={styles.sub}>
+            {progress && progress.total > 0
+              ? `Finding similar photos… ${progress.done} / ${progress.total}`
+              : 'Getting your photos ready…'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={groups}
+          keyExtractor={(g) => g.key}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <GroupRow
+              group={item}
+              done={finished.has(item.key)}
+              onPress={() => setOpen(item)}
+            />
+          )}
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+function GroupRow({
+  group,
+  done,
+  onPress,
+}: {
+  group: PhotoGroup;
+  done: boolean;
+  onPress: () => void;
+}) {
+  const when = new Date(group.assets[0].creationTime);
+  const label = when.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  const time = when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
+      <View style={styles.collage}>
+        {group.assets.slice(0, 4).map((p) => (
+          <PhotoThumb key={p.id} asset={p} style={styles.collageTile} />
+        ))}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle}>{group.assets.length} similar photos</Text>
+        <Text style={styles.rowSub}>
+          {label}, {time}
+        </Text>
+        {done && <Text style={styles.done}>✓ Swiped</Text>}
+      </View>
+      <Text style={styles.arrow}>›</Text>
+    </Pressable>
+  );
+}
+
+const COLLAGE = 88;
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  link: {
+    fontSize: 17,
+    color: '#2563eb',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  sub: {
+    fontSize: 15,
+    color: '#555',
+    marginTop: 8,
+    textAlign: 'left',
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  error: {
+    color: '#c00',
+    textAlign: 'center',
+  },
+  list: {
+    padding: 16,
+    gap: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: '#f3f4f6',
+  },
+  collage: {
+    width: COLLAGE,
+    height: COLLAGE,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  collageTile: {
+    width: COLLAGE / 2,
+    height: COLLAGE / 2,
+  },
+  rowTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  rowSub: {
+    fontSize: 14,
+    color: '#555',
+    marginTop: 2,
+  },
+  done: {
+    fontSize: 14,
+    color: '#16a34a',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  arrow: {
+    fontSize: 28,
+    color: '#9ca3af',
+  },
+});

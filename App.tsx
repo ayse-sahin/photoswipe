@@ -15,6 +15,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateField from './src/DateField';
 import Button from './src/Button';
 import PhotoThumb from './src/PhotoThumb';
+import GroupsScreen from './src/GroupsScreen';
 import SwipeScreen from './src/SwipeScreen';
 import { loadPhotos } from './src/photos';
 
@@ -51,7 +52,7 @@ function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [swiping, setSwiping] = useState(false);
+  const [mode, setMode] = useState<'home' | 'swipe' | 'best'>('home');
 
   const rangeEnd = useEndDate ? endDate : new Date();
 
@@ -117,27 +118,39 @@ function HomeScreen() {
   }
 
   // 3. Swipe through the photos
-  if (swiping) {
+  if (mode === 'swipe') {
     return (
       <SwipeScreen
         from={startDate}
         to={rangeEnd}
-        onClose={() => setSwiping(false)}
+        onClose={() => setMode('home')}
         onDeleted={() => {
-          setSwiping(false);
+          setMode('home');
           findPhotos();
         }}
       />
     );
   }
 
-  // 4. Pick dates, then show the photos from that range
+  // 4. Pick the best shot from groups of similar photos
+  if (mode === 'best') {
+    return (
+      <GroupsScreen
+        from={startDate}
+        to={rangeEnd}
+        onClose={() => setMode('home')}
+        onDeleted={findPhotos}
+      />
+    );
+  }
+
+  // 5. Pick dates, then show the photos from that range
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="auto" />
       <View style={styles.header}>
         <Text style={styles.title}>Galeri</Text>
-        <Text style={styles.note}>Version: step 6</Text>
+        <Text style={styles.note}>Version: step 6, update 1</Text>
         {permission.accessPrivileges === 'limited' && (
           <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
         )}
@@ -175,7 +188,10 @@ function HomeScreen() {
           </Text>
         )}
         {photos && totalCount > 0 && (
-          <Button label="Start swiping" onPress={() => setSwiping(true)} />
+          <>
+            <Button label="Start swiping" onPress={() => setMode('swipe')} />
+            <Button label="Pick the best shot" onPress={() => setMode('best')} variant="secondary" />
+          </>
         )}
       </View>
 

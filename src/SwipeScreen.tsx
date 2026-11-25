@@ -14,14 +14,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
 import ReviewScreen from './ReviewScreen';
-import { DeckItem, groupPhotos } from './grouping';
 import { loadAllPhotos } from './photos';
 
 export type Decision = 'keep' | 'delete' | 'undecided';
 
 type Props = {
-  from: Date;
-  to: Date;
+  // Either a date range (swipe every photo in it) or a ready list of photos (one group).
+  from?: Date;
+  to?: Date;
+  photos?: MediaLibrary.Asset[];
+  // Text of the button that leaves this screen, e.g. "Back to start" or "Back to groups".
+  closeLabel?: string;
   onClose: () => void;
   // Called after photos were deleted, so the start screen can refresh.
   onDeleted: () => void;
@@ -37,59 +40,52 @@ const SWIPE_UP = SCREEN_HEIGHT * 0.15;
 const STACK_SIZE = 3;
 
 type Round = 'all' | 'undecided';
-type Swipe = { key: string; decisions: [string, Decision][] };
 
-const photoItem = (asset: MediaLibrary.Asset): DeckItem => ({ kind: 'photo', key: asset.id, asset });
-
-export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
+export default function SwipeScreen({
+  from,
+  to,
+  photos: givenPhotos,
+  closeLabel = 'Back to start',
+  onClose,
+  onDeleted,
+}: Props) {
   const [allPhotos, setAllPhotos] = useState<MediaLibrary.Asset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
-  // The cards in the current round: single photos and groups of similar photos.
-  // First round: every photo. Later: only the undecided ones.
+  // The photos in the current round: first every photo, later only the undecided ones.
   const [round, setRound] = useState<Round>('all');
-  const [deck, setDeck] = useState<DeckItem[] | null>(null);
+  const [deck, setDeck] = useState<MediaLibrary.Asset[]>([]);
   // Decisions made in earlier rounds.
   const [earlier, setEarlier] = useState<Map<string, Decision>>(new Map());
-  // One entry per swiped card in this round. Its length is the index of the current card.
-  const [history, setHistory] = useState<Swipe[]>([]);
-  // When a group is open, you swipe inside it; these are the swipes inside the group.
-  const [openGroup, setOpenGroup] = useState<Extract<DeckItem, { kind: 'group' }> | null>(null);
-  const [groupHistory, setGroupHistory] = useState<Swipe[]>([]);
+  // One entry per swipe in this round, in order. Its length is the index of the current card.
+  const [history, setHistory] = useState<{ id: string; decision: Decision }[]>([]);
   const [reviewing, setReviewing] = useState(false);
   const [deletedCount, setDeletedCount] = useState<number | null>(null);
-  // Photos the user changed to "keep" on the review screen.
-  const [keptInReview, setKeptInReview] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    (async () => {
-      const photos = await loadAllPhotos(from, to);
-      setAllPhotos(photos);
-      const items = await groupPhotos(photos, (done, total) => setProgress({ done, total }));
-      setDeck(items);
-    })().catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    (givenPhotos ? Promise.resolve(givenPhotos) : loadAllPhotos(from!, to!))
+      .then((photos) => {
+        setAllPhotos(photos);
+        setDeck(photos);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
   // Each card gets its own position, so a card flying off the screen never
   // affects the card underneath it.
   const positions = useRef(new Map<string, Animated.ValueXY>()).current;
-  const positionOf = (key: string) => {
-    let p = positions.get(key);
+  const positionOf = (id: string) => {
+    let p = positions.get(id);
     if (!p) {
       p = new Animated.ValueXY();
-      positions.set(key, p);
+      positions.set(id, p);
     }
     return p;
   };
 
-  // The deck you're swiping right now: the open group, or the main deck.
-  const items: DeckItem[] = openGroup ? openGroup.assets.map(photoItem) : (deck ?? []);
-  const activeHistory = openGroup ? groupHistory : history;
-  const index = activeHistory.length;
-  const current: DeckItem | undefined = items[index];
-
   const animating = useRef(false);
+  const index = history.length;
+  const current = deck[index];
 
   const decideRef = useRef<(d: Decision) => void>(() => {});
   decideRef.current = (decision: Decision) => {
@@ -101,49 +97,32 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
         : decision === 'delete'
           ? { x: -SCREEN_WIDTH * 1.5, y: 0 }
           : { x: 0, y: -SCREEN_HEIGHT };
-    Animated.timing(positionOf(current.key), {
+    Animated.timing(positionOf(current.id), {
       toValue: target,
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
-      const ids = current.kind === 'photo' ? [current.asset.id] : current.assets.map((a) => a.id);
-      const swipe: Swipe = { key: current.key, decisions: ids.map((id) => [id, decision]) };
-      if (openGroup) {
-        const inGroup = [...groupHistory, swipe];
-        if (inGroup.length === openGroup.assets.length) {
-          // Finished the group: it counts as one swiped card in the main deck.
-          setHistory((h) => [
-            ...h,
-            { key: openGroup.key, decisions: inGroup.flatMap((s) => s.decisions) },
-          ]);
-          setGroupHistory([]);
-          setOpenGroup(null);
-        } else {
-          setGroupHistory(inGroup);
-        }
-      } else {
-        setHistory((h) => [...h, swipe]);
-      }
+      setHistory((h) => [...h, { id: current.id, decision }]);
       animating.current = false;
     });
   };
 
-  const currentKeyRef = useRef<string | undefined>(undefined);
-  currentKeyRef.current = current?.key;
+  const currentIdRef = useRef<string | undefined>(undefined);
+  currentIdRef.current = current?.id;
 
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 5 || Math.abs(g.dy) > 5,
       onPanResponderMove: (_e, g) => {
-        if (currentKeyRef.current) positionOf(currentKeyRef.current).setValue({ x: g.dx, y: g.dy });
+        if (currentIdRef.current) positionOf(currentIdRef.current).setValue({ x: g.dx, y: g.dy });
       },
       onPanResponderRelease: (_e, g) => {
         const up = -g.dy > SWIPE_UP && Math.abs(g.dy) > Math.abs(g.dx);
         if (up) decideRef.current('undecided');
         else if (g.dx > SWIPE_X) decideRef.current('keep');
         else if (g.dx < -SWIPE_X) decideRef.current('delete');
-        else if (currentKeyRef.current)
-          Animated.spring(positionOf(currentKeyRef.current), {
+        else if (currentIdRef.current)
+          Animated.spring(positionOf(currentIdRef.current), {
             toValue: { x: 0, y: 0 },
             useNativeDriver: true,
           }).start();
@@ -151,49 +130,30 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
     }),
   ).current;
 
-  function openGroupCard(group: Extract<DeckItem, { kind: 'group' }>) {
-    if (animating.current) return;
-    for (const a of group.assets) positionOf(a.id).setValue({ x: 0, y: 0 });
-    setGroupHistory([]);
-    setOpenGroup(group);
-  }
-
-  function closeGroup() {
-    setGroupHistory([]);
-    setOpenGroup(null);
-  }
-
   function undo() {
-    if (animating.current) return;
-    if (openGroup) {
-      if (groupHistory.length === 0) return closeGroup();
-      const last = groupHistory[groupHistory.length - 1];
-      // That card is off screen right now, so putting it back in the middle doesn't flicker.
-      positionOf(last.key).setValue({ x: 0, y: 0 });
-      setGroupHistory((h) => h.slice(0, -1));
-      return;
-    }
-    if (history.length === 0) return;
-    positionOf(history[history.length - 1].key).setValue({ x: 0, y: 0 });
+    if (animating.current || history.length === 0) return;
+    const last = history[history.length - 1];
+    // That card is off screen right now, so putting it back in the middle doesn't flicker.
+    positionOf(last.id).setValue({ x: 0, y: 0 });
     setHistory((h) => h.slice(0, -1));
   }
 
-  // Final decision for every photo: earlier rounds, then this round, then the
-  // open group, then changes made on the review screen.
+  // Photos the user changed to "keep" on the review screen.
+  const [keptInReview, setKeptInReview] = useState<Set<string>>(new Set());
+
+  // Final decision for every photo: earlier rounds, overwritten by this round,
+  // overwritten by changes made on the review screen.
   const decisions = new Map(earlier);
-  for (const s of [...history, ...groupHistory])
-    for (const [id, d] of s.decisions) decisions.set(id, d);
+  for (const h of history) decisions.set(h.id, h.decision);
   for (const id of keptInReview) decisions.set(id, 'keep');
 
-  async function startUndecidedRound() {
+  function startUndecidedRound() {
     if (!allPhotos) return;
     const undecided = allPhotos.filter((p) => decisions.get(p.id) === 'undecided');
-    const regrouped = await groupPhotos(undecided);
-    for (const item of regrouped) positionOf(item.key).setValue({ x: 0, y: 0 });
     for (const p of undecided) positionOf(p.id).setValue({ x: 0, y: 0 });
     setEarlier(decisions);
     setKeptInReview(new Set());
-    setDeck(regrouped);
+    setDeck(undecided);
     setHistory([]);
     setRound('undecided');
   }
@@ -207,15 +167,11 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
     );
   }
 
-  if (!allPhotos || !deck) {
+  if (!allPhotos) {
     return (
       <Centered>
         <ActivityIndicator />
-        <Text style={styles.body}>
-          {progress && progress.total > 0
-            ? `Finding similar photos… ${progress.done} / ${progress.total}`
-            : 'Getting your photos ready…'}
-        </Text>
+        <Text style={styles.body}>Getting your photos ready…</Text>
       </Centered>
     );
   }
@@ -227,7 +183,7 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
         <Text style={styles.body}>
           Changed your mind? They're in "Recently Deleted" in the Photos app for 30 days.
         </Text>
-        <Button label="Back to start" onPress={onDeleted} />
+        <Button label={closeLabel} onPress={onDeleted} />
       </Centered>
     );
   }
@@ -294,16 +250,15 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
           <Text style={styles.note}>No photos marked for deletion.</Text>
         )}
         {history.length > 0 && <Button label="Undo last swipe" onPress={undo} variant="secondary" />}
-        <Button label="Back to start" onPress={onClose} />
+        <Button label={closeLabel} onPress={onClose} />
       </SafeAreaView>
     );
   }
 
   // The current card and the next few, drawn bottom to top so the current one is on top.
   // Each card keeps the same key while it moves up the stack, so its photo stays loaded.
-  const stack = items.slice(index, index + STACK_SIZE).reverse();
-  const top = positionOf(current.key);
-  const isGroupCard = current.kind === 'group';
+  const stack = deck.slice(index, index + STACK_SIZE).reverse();
+  const top = positionOf(current.id);
 
   const rotate = top.x.interpolate({
     inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
@@ -328,12 +283,12 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={openGroup ? closeGroup : onClose} hitSlop={12}>
-          <Text style={styles.link}>{openGroup ? '‹ All photos' : '‹ Back'}</Text>
+        <Pressable onPress={onClose} hitSlop={12}>
+          <Text style={styles.link}>‹ Back</Text>
         </Pressable>
         <Text style={styles.progress}>
-          {openGroup ? 'Group ' : round === 'undecided' ? 'Undecided ' : ''}
-          {index + 1} / {items.length}
+          {round === 'undecided' ? 'Undecided ' : ''}
+          {index + 1} / {deck.length}
         </Text>
         <Text style={styles.counts}>
           ✕ {toDelete} · ? {undecided} · ✓ {kept}
@@ -341,12 +296,12 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
       </View>
 
       <View style={styles.deck}>
-        {stack.map((item) => {
-          const isTop = item.key === current.key;
-          const pos = positionOf(item.key);
+        {stack.map((photo) => {
+          const isTop = photo.id === current.id;
+          const pos = positionOf(photo.id);
           return (
             <Animated.View
-              key={item.key}
+              key={photo.id}
               {...(isTop ? panResponder.panHandlers : {})}
               style={[
                 styles.card,
@@ -355,24 +310,16 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
                   : null,
               ]}
             >
-              {item.kind === 'photo' ? (
-                <PhotoThumb asset={item.asset} style={styles.photo} contentFit="contain" />
-              ) : (
-                <GroupCard group={item} onOpen={() => isTop && openGroupCard(item)} />
-              )}
+              <PhotoThumb asset={photo} style={styles.photo} contentFit="contain" />
               {isTop && (
                 <>
                   <Animated.View style={[styles.stamp, styles.keepStamp, { opacity: keepOpacity }]}>
-                    <Text style={[styles.stampText, { color: '#16a34a' }]}>
-                      {isGroupCard ? 'KEEP ALL' : 'KEEP'}
-                    </Text>
+                    <Text style={[styles.stampText, { color: '#16a34a' }]}>KEEP</Text>
                   </Animated.View>
                   <Animated.View
                     style={[styles.stamp, styles.deleteStamp, { opacity: deleteOpacity }]}
                   >
-                    <Text style={[styles.stampText, { color: '#dc2626' }]}>
-                      {isGroupCard ? 'DELETE ALL' : 'DELETE'}
-                    </Text>
+                    <Text style={[styles.stampText, { color: '#dc2626' }]}>DELETE</Text>
                   </Animated.View>
                   <Animated.View style={[styles.stamp, styles.laterStamp, { opacity: laterOpacity }]}>
                     <Text style={[styles.stampText, { color: '#d97706' }]}>NOT SURE</Text>
@@ -386,56 +333,12 @@ export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
 
       <View style={styles.actions}>
         <RoundButton label="✕" color="#dc2626" onPress={() => decideRef.current('delete')} />
-        <RoundButton
-          label="↺"
-          color="#6b7280"
-          small
-          onPress={undo}
-          disabled={!openGroup && index === 0}
-        />
+        <RoundButton label="↺" color="#6b7280" small onPress={undo} disabled={index === 0} />
         <RoundButton label="?" color="#d97706" small onPress={() => decideRef.current('undecided')} />
         <RoundButton label="✓" color="#16a34a" onPress={() => decideRef.current('keep')} />
       </View>
-      <Text style={styles.hint}>
-        {isGroupCard
-          ? 'Tap to open the group · or swipe to decide for all of them'
-          : 'Left: delete · Up: not sure · Right: keep'}
-      </Text>
+      <Text style={styles.hint}>Left: delete · Up: not sure · Right: keep</Text>
     </SafeAreaView>
-  );
-}
-
-// A card standing for several similar photos: a 2x2 preview and a label.
-function GroupCard({
-  group,
-  onOpen,
-}: {
-  group: Extract<DeckItem, { kind: 'group' }>;
-  onOpen: () => void;
-}) {
-  const previews = group.assets.slice(0, 4);
-  const time = new Date(group.assets[0].creationTime).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  return (
-    <Pressable onPress={onOpen} style={styles.groupCard}>
-      <View style={styles.collage}>
-        {previews.map((p) => (
-          <PhotoThumb
-            key={p.id}
-            asset={p}
-            style={previews.length === 2 ? styles.collageHalf : styles.collageQuarter}
-          />
-        ))}
-      </View>
-      <View style={styles.groupBanner}>
-        <Text style={styles.groupBannerTitle}>
-          ▣ {group.assets.length} similar photos · {time}
-        </Text>
-        <Text style={styles.groupBannerSub}>Tap to swipe through them one by one</Text>
-      </View>
-    </Pressable>
   );
 }
 
@@ -559,44 +462,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
-  },
-  groupCard: {
-    flex: 1,
-  },
-  collage: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  collageQuarter: {
-    width: '50%',
-    height: '50%',
-    borderWidth: 1,
-    borderColor: '#000',
-  },
-  collageHalf: {
-    width: '100%',
-    height: '50%',
-    borderWidth: 1,
-    borderColor: '#000',
-  },
-  groupBanner: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 16,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-  },
-  groupBannerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  groupBannerSub: {
-    color: '#ddd',
-    fontSize: 14,
-    marginTop: 2,
   },
   laterStamp: {
     alignSelf: 'center',
