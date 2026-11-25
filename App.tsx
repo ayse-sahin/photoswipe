@@ -1,39 +1,273 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import * as MediaLibrary from 'expo-media-library/legacy';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import DateField from './src/DateField';
+import { loadPhotos } from './src/photos';
+
+const COLUMNS = 3;
+const TILE = Dimensions.get('window').width / COLUMNS;
+
+function daysAgo(n: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+}
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Galeri</Text>
-      <Text style={styles.subtitle}>Clean up your photos, one swipe at a time.</Text>
-      <Text style={styles.hint}>Swipe left to delete, right to keep. Coming soon.</Text>
+    <SafeAreaProvider>
+      <HomeScreen />
+    </SafeAreaProvider>
+  );
+}
+
+function HomeScreen() {
+  const [permission, requestPermission] = MediaLibrary.usePermissions({
+    granularPermissions: ['photo'],
+  });
+
+  const [startDate, setStartDate] = useState(daysAgo(7));
+  const [useEndDate, setUseEndDate] = useState(false);
+  const [endDate, setEndDate] = useState(new Date());
+
+  const [photos, setPhotos] = useState<MediaLibrary.Asset[] | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const rangeEnd = useEndDate ? endDate : new Date();
+
+  async function findPhotos() {
+    setLoading(true);
+    setError(null);
+    try {
+      const page = await loadPhotos(startDate, rangeEnd);
+      setPhotos(page.photos);
+      setTotalCount(page.totalCount);
+      setCursor(page.endCursor);
+      setHasMore(page.hasNextPage);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadMore() {
+    if (loading || !hasMore || !photos) return;
+    setLoading(true);
+    try {
+      const page = await loadPhotos(startDate, rangeEnd, cursor);
+      setPhotos([...photos, ...page.photos]);
+      setCursor(page.endCursor);
+      setHasMore(page.hasNextPage);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // 1. Still checking permission
+  if (!permission) {
+    return (
+      <Centered>
+        <ActivityIndicator />
+      </Centered>
+    );
+  }
+
+  // 2. No permission yet: explain and ask
+  if (!permission.granted) {
+    return (
+      <Centered>
+        <Text style={styles.title}>Galeri</Text>
+        <Text style={styles.body}>
+          Galeri needs access to your photos so you can swipe through them. Your photos never leave
+          your phone.
+        </Text>
+        {permission.canAskAgain ? (
+          <Button label="Allow photo access" onPress={requestPermission} />
+        ) : (
+          <>
+            <Text style={styles.body}>Photo access is turned off. You can turn it on in Settings.</Text>
+            <Button label="Open Settings" onPress={() => Linking.openSettings()} />
+          </>
+        )}
+      </Centered>
+    );
+  }
+
+  // 3. Pick dates, then show the photos from that range
+  return (
+    <SafeAreaView style={styles.screen}>
       <StatusBar style="auto" />
+      <View style={styles.header}>
+        <Text style={styles.title}>Galeri</Text>
+        {permission.accessPrivileges === 'limited' && (
+          <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
+        )}
+
+        <DateField
+          label="Start date"
+          value={startDate}
+          maximumDate={rangeEnd}
+          onChange={setStartDate}
+        />
+        <View style={styles.row}>
+          <Text style={styles.label}>Choose an end date</Text>
+          <Switch value={useEndDate} onValueChange={setUseEndDate} />
+        </View>
+        {useEndDate ? (
+          <DateField
+            label="End date"
+            value={endDate}
+            minimumDate={startDate}
+            maximumDate={new Date()}
+            onChange={setEndDate}
+          />
+        ) : (
+          <Text style={styles.note}>Showing photos up to today.</Text>
+        )}
+
+        <Button label="Find photos" onPress={findPhotos} disabled={loading} />
+
+        {error && <Text style={styles.error}>Something went wrong: {error}</Text>}
+        {photos && (
+          <Text style={styles.count}>
+            {totalCount === 0
+              ? 'No photos in this range.'
+              : `${totalCount} photo${totalCount === 1 ? '' : 's'} found`}
+          </Text>
+        )}
+      </View>
+
+      <FlatList
+        data={photos ?? []}
+        keyExtractor={(item) => item.id}
+        numColumns={COLUMNS}
+        renderItem={({ item }) => <Image source={{ uri: item.uri }} style={styles.tile} />}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} /> : undefined}
+      />
+    </SafeAreaView>
+  );
+}
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.centered}>
+      <StatusBar style="auto" />
+      {children}
     </View>
   );
 }
 
+function Button({
+  label,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [styles.button, (pressed || disabled) && { opacity: 0.6 }]}
+    >
+      <Text style={styles.buttonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
+  screen: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  centered: {
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
   title: {
-    fontSize: 40,
+    fontSize: 32,
     fontWeight: '700',
     marginBottom: 12,
   },
-  subtitle: {
-    fontSize: 18,
+  body: {
+    fontSize: 16,
     textAlign: 'center',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  hint: {
-    fontSize: 14,
-    textAlign: 'center',
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  label: {
+    fontSize: 16,
+    color: '#333',
+  },
+  note: {
+    fontSize: 13,
     color: '#888',
+    marginBottom: 4,
+  },
+  button: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  error: {
+    color: '#c00',
+    marginTop: 8,
+  },
+  count: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+  },
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderWidth: 1,
+    borderColor: '#fff',
   },
 });

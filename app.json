@@ -20,6 +20,20 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Galeri needs access to your photos so you can sort through them and delete the ones you don't want.",
+          "savePhotosPermission": "Galeri needs access to your photos so you can sort through them.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ]
   }
 }
