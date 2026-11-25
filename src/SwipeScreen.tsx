@@ -35,8 +35,11 @@ type Props = {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 // How far (in points) a card must be dragged to count as a swipe.
-const SWIPE_X = SCREEN_WIDTH * 0.3;
-const SWIPE_UP = SCREEN_HEIGHT * 0.15;
+const SWIPE_X = SCREEN_WIDTH * 0.18;
+const SWIPE_UP = SCREEN_HEIGHT * 0.1;
+// A quick flick counts as a swipe even if the card only moved a little.
+const FLICK_SPEED = 0.45; // points per millisecond
+const FLICK_MIN = 24; // the card must still move at least this far
 // How many cards are kept loaded in the stack, so the next photo is ready
 // before it's shown (this is what stops the black flash between photos).
 const STACK_SIZE = 3;
@@ -101,7 +104,7 @@ export default function SwipeScreen({
           : { x: 0, y: -SCREEN_HEIGHT };
     Animated.timing(positionOf(current.id), {
       toValue: target,
-      duration: 200,
+      duration: 160,
       useNativeDriver: true,
     }).start(() => {
       setHistory((h) => [...h, { id: current.id, decision }]);
@@ -114,15 +117,20 @@ export default function SwipeScreen({
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 5 || Math.abs(g.dy) > 5,
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_e, g) => {
         if (currentIdRef.current) positionOf(currentIdRef.current).setValue({ x: g.dx, y: g.dy });
       },
       onPanResponderRelease: (_e, g) => {
-        const up = -g.dy > SWIPE_UP && Math.abs(g.dy) > Math.abs(g.dx);
+        const vertical = Math.abs(g.dy) > Math.abs(g.dx);
+        const up =
+          vertical && (-g.dy > SWIPE_UP || (-g.vy > FLICK_SPEED && -g.dy > FLICK_MIN));
+        const right = !vertical && (g.dx > SWIPE_X || (g.vx > FLICK_SPEED && g.dx > FLICK_MIN));
+        const left = !vertical && (-g.dx > SWIPE_X || (-g.vx > FLICK_SPEED && -g.dx > FLICK_MIN));
         if (up) decideRef.current('undecided');
-        else if (g.dx > SWIPE_X) decideRef.current('keep');
-        else if (g.dx < -SWIPE_X) decideRef.current('delete');
+        else if (right) decideRef.current('keep');
+        else if (left) decideRef.current('delete');
         else if (currentIdRef.current)
           Animated.spring(positionOf(currentIdRef.current), {
             toValue: { x: 0, y: 0 },
