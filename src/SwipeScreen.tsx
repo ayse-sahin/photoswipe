@@ -2,6 +2,7 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   PanResponder,
@@ -280,11 +281,39 @@ export default function SwipeScreen({
     extrapolate: 'clamp',
   });
 
+  // Leave in the middle of swiping. If some photos are marked, offer to delete them first.
+  function exitPressed() {
+    const marked = allPhotos!.filter((p) => decisions.get(p.id) === 'delete');
+    if (marked.length === 0) return onClose();
+    const n = marked.length;
+    Alert.alert(
+      `Delete ${n} photo${n === 1 ? '' : 's'}?`,
+      `You marked ${n} photo${n === 1 ? '' : 's'} to delete so far.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Exit without deleting', onPress: onClose },
+        {
+          text: `Delete ${n} & exit`,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // The phone asks once more, then the photos go to "Recently Deleted".
+              const ok = await MediaLibrary.deleteAssetsAsync(marked.map((p) => p.id));
+              if (ok) setDeletedCount(n);
+            } catch {
+              // Tapped "Don't Allow" on the phone's question: nothing deleted, keep swiping.
+            }
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={onClose} hitSlop={12}>
-          <Text style={styles.link}>‹ Back</Text>
+        <Pressable onPress={exitPressed} hitSlop={12} style={styles.exitButton}>
+          <Text style={styles.exitText}>Exit</Text>
         </Pressable>
         <Text style={styles.progress}>
           {round === 'undecided' ? 'Undecided ' : ''}
@@ -431,6 +460,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  exitButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  exitText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111',
   },
   link: {
     fontSize: 17,

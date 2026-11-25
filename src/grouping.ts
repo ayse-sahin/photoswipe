@@ -16,8 +16,8 @@ export type GroupSize = 'small' | 'medium' | 'large';
 // maxDistance: how many of the 64 fingerprint bits may differ for "looks alike".
 const SETTINGS: Record<GroupSize, { maxGapMs: number; maxDistance: number }> = {
   small: { maxGapMs: 60 * 1000, maxDistance: 12 },
-  medium: { maxGapMs: 5 * 60 * 1000, maxDistance: 20 },
-  large: { maxGapMs: 15 * 60 * 1000, maxDistance: 26 },
+  medium: { maxGapMs: 60 * 60 * 1000, maxDistance: 22 },
+  large: { maxGapMs: 60 * 60 * 1000, maxDistance: 26 },
 };
 // The widest time window of any setting; we fingerprint everything inside it once,
 // so switching between Small / Medium / Large is instant.
