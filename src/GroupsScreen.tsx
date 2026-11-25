@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
 import SwipeScreen from './SwipeScreen';
-import { GroupSize, groupPhotos, PhotoGroup, prepareFingerprints } from './grouping';
+import { groupPhotos, PhotoGroup, prepareFingerprints } from './grouping';
 import { loadAllPhotos } from './photos';
 
 type Props = {
@@ -21,7 +21,6 @@ type Props = {
 export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
   const [photos, setPhotos] = useState<MediaLibrary.Asset[] | null>(null);
   const [ready, setReady] = useState(false);
-  const [size, setSize] = useState<GroupSize>('medium');
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<PhotoGroup | null>(null);
@@ -41,13 +40,12 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
     }
   }
 
-  // Regrouping is instant once fingerprints are ready, so the size switch is live.
   const groups = useMemo(
     () =>
       ready && photos
-        ? groupPhotos(photos, size).filter((i): i is PhotoGroup => i.kind === 'group')
+        ? groupPhotos(photos, 'medium').filter((i): i is PhotoGroup => i.kind === 'group')
         : null,
-    [ready, photos, size],
+    [ready, photos],
   );
 
   useEffect(() => {
@@ -81,24 +79,6 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
           <Text style={styles.link}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>Pick the best shot</Text>
-        {groups && (
-          <View style={styles.sizeRow}>
-            <Text style={styles.sizeLabel}>Group size</Text>
-            <View style={styles.segment}>
-              {(['small', 'medium', 'large'] as GroupSize[]).map((s) => (
-                <Pressable
-                  key={s}
-                  onPress={() => setSize(s)}
-                  style={[styles.segmentItem, size === s && styles.segmentActive]}
-                >
-                  <Text style={[styles.segmentText, size === s && styles.segmentTextActive]}>
-                    {s[0].toUpperCase() + s.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
         {groups && (
           <Text style={styles.sub}>
             {groups.length === 0
@@ -247,42 +227,6 @@ const styles = StyleSheet.create({
     color: '#16a34a',
     fontWeight: '600',
     marginTop: 4,
-  },
-  sizeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  sizeLabel: {
-    fontSize: 15,
-    color: '#333',
-  },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: '#eef1f5',
-    borderRadius: 10,
-    padding: 3,
-  },
-  segmentItem: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  segmentActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  segmentText: {
-    fontSize: 14,
-    color: '#555',
-  },
-  segmentTextActive: {
-    color: '#111',
-    fontWeight: '600',
   },
   arrow: {
     fontSize: 28,
