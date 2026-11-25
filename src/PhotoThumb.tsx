@@ -38,6 +38,15 @@ export default function PhotoThumb({ asset, style, contentFit = 'cover' }: Props
     };
   }, [asset.id]);
 
-  if (!uri) return <View style={[style as object, { backgroundColor: '#eee' }]} />;
-  return <Image source={{ uri }} style={style} contentFit={contentFit} recyclingKey={asset.id} />;
+  if (!uri) return <View style={[style as object, { backgroundColor: '#e5e7eb' }]} />;
+  return (
+    <Image
+      source={{ uri }}
+      style={style}
+      contentFit={contentFit}
+      recyclingKey={asset.id}
+      cachePolicy="memory-disk"
+      transition={0}
+    />
+  );
 }

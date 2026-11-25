@@ -15,7 +15,7 @@ import Button from './Button';
 import PhotoThumb from './PhotoThumb';
 import { loadAllPhotos } from './photos';
 
-export type Decision = 'keep' | 'delete';
+export type Decision = 'keep' | 'delete' | 'undecided';
 
 type Props = {
   from: Date;
@@ -24,52 +24,89 @@ type Props = {
 };
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 // How far (in points) a card must be dragged to count as a swipe.
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
+const SWIPE_X = SCREEN_WIDTH * 0.3;
+const SWIPE_UP = SCREEN_HEIGHT * 0.15;
+// How many cards are kept loaded in the stack, so the next photo is ready
+// before it's shown (this is what stops the black flash between photos).
+const STACK_SIZE = 3;
+
+type Round = 'all' | 'undecided';
 
 export default function SwipeScreen({ from, to, onClose }: Props) {
-  const [photos, setPhotos] = useState<MediaLibrary.Asset[] | null>(null);
+  const [allPhotos, setAllPhotos] = useState<MediaLibrary.Asset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // One entry per swiped photo, in order. Its length is the index of the current card.
+
+  // The photos in the current round: first every photo, later only the undecided ones.
+  const [round, setRound] = useState<Round>('all');
+  const [deck, setDeck] = useState<MediaLibrary.Asset[]>([]);
+  // Decisions made in earlier rounds.
+  const [earlier, setEarlier] = useState<Map<string, Decision>>(new Map());
+  // One entry per swipe in this round, in order. Its length is the index of the current card.
   const [history, setHistory] = useState<{ id: string; decision: Decision }[]>([]);
 
   useEffect(() => {
     loadAllPhotos(from, to)
-      .then(setPhotos)
+      .then((photos) => {
+        setAllPhotos(photos);
+        setDeck(photos);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
-  const position = useRef(new Animated.ValueXY()).current;
+  // Each card gets its own position, so a card flying off the screen never
+  // affects the card underneath it.
+  const positions = useRef(new Map<string, Animated.ValueXY>()).current;
+  const positionOf = (id: string) => {
+    let p = positions.get(id);
+    if (!p) {
+      p = new Animated.ValueXY();
+      positions.set(id, p);
+    }
+    return p;
+  };
+
   const animating = useRef(false);
   const index = history.length;
-  const current = photos?.[index];
-  const next = photos?.[index + 1];
+  const current = deck[index];
 
-  // The pan handler is created once, so it reads the latest state through this ref.
   const decideRef = useRef<(d: Decision) => void>(() => {});
   decideRef.current = (decision: Decision) => {
     if (!current || animating.current) return;
     animating.current = true;
-    Animated.timing(position, {
-      toValue: { x: decision === 'keep' ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5, y: 0 },
+    const target =
+      decision === 'keep'
+        ? { x: SCREEN_WIDTH * 1.5, y: 0 }
+        : decision === 'delete'
+          ? { x: -SCREEN_WIDTH * 1.5, y: 0 }
+          : { x: 0, y: -SCREEN_HEIGHT };
+    Animated.timing(positionOf(current.id), {
+      toValue: target,
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
       setHistory((h) => [...h, { id: current.id, decision }]);
-      position.setValue({ x: 0, y: 0 });
       animating.current = false;
     });
   };
 
+  const currentIdRef = useRef<string | undefined>(undefined);
+  currentIdRef.current = current?.id;
+
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 5,
-      onPanResponderMove: (_e, g) => position.setValue({ x: g.dx, y: g.dy }),
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 5 || Math.abs(g.dy) > 5,
+      onPanResponderMove: (_e, g) => {
+        if (currentIdRef.current) positionOf(currentIdRef.current).setValue({ x: g.dx, y: g.dy });
+      },
       onPanResponderRelease: (_e, g) => {
-        if (g.dx > SWIPE_THRESHOLD) decideRef.current('keep');
-        else if (g.dx < -SWIPE_THRESHOLD) decideRef.current('delete');
-        else
-          Animated.spring(position, {
+        const up = -g.dy > SWIPE_UP && Math.abs(g.dy) > Math.abs(g.dx);
+        if (up) decideRef.current('undecided');
+        else if (g.dx > SWIPE_X) decideRef.current('keep');
+        else if (g.dx < -SWIPE_X) decideRef.current('delete');
+        else if (currentIdRef.current)
+          Animated.spring(positionOf(currentIdRef.current), {
             toValue: { x: 0, y: 0 },
             useNativeDriver: true,
           }).start();
@@ -78,9 +115,25 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
   ).current;
 
   function undo() {
-    if (animating.current) return;
-    position.setValue({ x: 0, y: 0 });
+    if (animating.current || history.length === 0) return;
+    const last = history[history.length - 1];
+    // That card is off screen right now, so putting it back in the middle doesn't flicker.
+    positionOf(last.id).setValue({ x: 0, y: 0 });
     setHistory((h) => h.slice(0, -1));
+  }
+
+  // Final decision for every photo: earlier rounds, overwritten by this round.
+  const decisions = new Map(earlier);
+  for (const h of history) decisions.set(h.id, h.decision);
+
+  function startUndecidedRound() {
+    if (!allPhotos) return;
+    const undecided = allPhotos.filter((p) => decisions.get(p.id) === 'undecided');
+    for (const p of undecided) positionOf(p.id).setValue({ x: 0, y: 0 });
+    setEarlier(decisions);
+    setDeck(undecided);
+    setHistory([]);
+    setRound('undecided');
   }
 
   if (error) {
@@ -92,7 +145,7 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
     );
   }
 
-  if (!photos) {
+  if (!allPhotos) {
     return (
       <Centered>
         <ActivityIndicator />
@@ -101,35 +154,75 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
     );
   }
 
-  const toDelete = history.filter((h) => h.decision === 'delete').length;
-  const kept = history.length - toDelete;
+  let kept = 0;
+  let toDelete = 0;
+  let undecided = 0;
+  for (const d of decisions.values()) {
+    if (d === 'keep') kept++;
+    else if (d === 'delete') toDelete++;
+    else undecided++;
+  }
 
-  // All photos sorted
+  // Round finished
   if (!current) {
+    const undecidedPhotos = allPhotos.filter((p) => decisions.get(p.id) === 'undecided');
     return (
-      <Centered>
-        <Text style={styles.title}>All done!</Text>
-        <Text style={styles.body}>
-          You kept {kept} photo{kept === 1 ? '' : 's'} and marked {toDelete} to delete.
-        </Text>
+      <SafeAreaView style={styles.doneScreen}>
+        <Text style={styles.title}>{undecided > 0 ? 'Almost done!' : 'All done!'}</Text>
+        <View style={styles.summary}>
+          <SummaryRow emoji="✓" color="#16a34a" label="Keep" count={kept} />
+          <SummaryRow emoji="✕" color="#dc2626" label="Delete" count={toDelete} />
+          <SummaryRow emoji="?" color="#d97706" label="Undecided" count={undecided} />
+        </View>
+
+        {undecided > 0 && (
+          <Pressable
+            onPress={startUndecidedRound}
+            style={({ pressed }) => [styles.group, pressed && { opacity: 0.7 }]}
+          >
+            <View style={styles.groupThumbs}>
+              {undecidedPhotos.slice(0, 4).map((p) => (
+                <PhotoThumb key={p.id} asset={p} style={styles.groupThumb} />
+              ))}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.groupTitle}>Undecided</Text>
+              <Text style={styles.groupSub}>
+                {undecided} photo{undecided === 1 ? '' : 's'} · tap to swipe these
+              </Text>
+            </View>
+            <Text style={styles.groupArrow}>›</Text>
+          </Pressable>
+        )}
+
         <Text style={styles.note}>Nothing has been deleted. Deleting comes in the next step.</Text>
         {history.length > 0 && <Button label="Undo last swipe" onPress={undo} variant="secondary" />}
         <Button label="Back to start" onPress={onClose} />
-      </Centered>
+      </SafeAreaView>
     );
   }
 
-  const rotate = position.x.interpolate({
+  // The current card and the next few, drawn bottom to top so the current one is on top.
+  // Each card keeps the same key while it moves up the stack, so its photo stays loaded.
+  const stack = deck.slice(index, index + STACK_SIZE).reverse();
+  const top = positionOf(current.id);
+
+  const rotate = top.x.interpolate({
     inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
     outputRange: ['-12deg', '0deg', '12deg'],
   });
-  const keepOpacity = position.x.interpolate({
-    inputRange: [0, SWIPE_THRESHOLD],
+  const keepOpacity = top.x.interpolate({
+    inputRange: [0, SWIPE_X],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
-  const deleteOpacity = position.x.interpolate({
-    inputRange: [-SWIPE_THRESHOLD, 0],
+  const deleteOpacity = top.x.interpolate({
+    inputRange: [-SWIPE_X, 0],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const laterOpacity = top.y.interpolate({
+    inputRange: [-SWIPE_UP, 0],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
@@ -141,43 +234,78 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
           <Text style={styles.link}>‹ Back</Text>
         </Pressable>
         <Text style={styles.progress}>
-          {index + 1} / {photos.length}
+          {round === 'undecided' ? 'Undecided ' : ''}
+          {index + 1} / {deck.length}
         </Text>
         <Text style={styles.counts}>
-          🗑 {toDelete} · ✓ {kept}
+          ✕ {toDelete} · ? {undecided} · ✓ {kept}
         </Text>
       </View>
 
       <View style={styles.deck}>
-        {next && (
-          <View style={[styles.card, styles.nextCard]}>
-            <PhotoThumb key={next.id} asset={next} style={styles.photo} contentFit="contain" />
-          </View>
-        )}
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={[
-            styles.card,
-            { transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }] },
-          ]}
-        >
-          <PhotoThumb key={current.id} asset={current} style={styles.photo} contentFit="contain" />
-          <Animated.View style={[styles.stamp, styles.keepStamp, { opacity: keepOpacity }]}>
-            <Text style={[styles.stampText, { color: '#16a34a' }]}>KEEP</Text>
-          </Animated.View>
-          <Animated.View style={[styles.stamp, styles.deleteStamp, { opacity: deleteOpacity }]}>
-            <Text style={[styles.stampText, { color: '#dc2626' }]}>DELETE</Text>
-          </Animated.View>
-        </Animated.View>
+        {stack.map((photo) => {
+          const isTop = photo.id === current.id;
+          const pos = positionOf(photo.id);
+          return (
+            <Animated.View
+              key={photo.id}
+              {...(isTop ? panResponder.panHandlers : {})}
+              style={[
+                styles.card,
+                isTop
+                  ? { transform: [{ translateX: pos.x }, { translateY: pos.y }, { rotate }] }
+                  : { transform: [{ scale: 0.95 }] },
+              ]}
+            >
+              <PhotoThumb asset={photo} style={styles.photo} contentFit="contain" />
+              {isTop && (
+                <>
+                  <Animated.View style={[styles.stamp, styles.keepStamp, { opacity: keepOpacity }]}>
+                    <Text style={[styles.stampText, { color: '#16a34a' }]}>KEEP</Text>
+                  </Animated.View>
+                  <Animated.View
+                    style={[styles.stamp, styles.deleteStamp, { opacity: deleteOpacity }]}
+                  >
+                    <Text style={[styles.stampText, { color: '#dc2626' }]}>DELETE</Text>
+                  </Animated.View>
+                  <Animated.View style={[styles.stamp, styles.laterStamp, { opacity: laterOpacity }]}>
+                    <Text style={[styles.stampText, { color: '#d97706' }]}>NOT SURE</Text>
+                  </Animated.View>
+                </>
+              )}
+            </Animated.View>
+          );
+        })}
       </View>
 
       <View style={styles.actions}>
-        <RoundButton label="✕" color="#dc2626" onPress={() => decideRef.current('delete')} />
         <RoundButton label="↺" color="#6b7280" small onPress={undo} disabled={index === 0} />
+        <RoundButton label="✕" color="#dc2626" onPress={() => decideRef.current('delete')} />
+        <RoundButton label="?" color="#d97706" small onPress={() => decideRef.current('undecided')} />
         <RoundButton label="✓" color="#16a34a" onPress={() => decideRef.current('keep')} />
       </View>
-      <Text style={styles.hint}>Swipe left to delete, right to keep</Text>
+      <Text style={styles.hint}>Left: delete · Up: not sure · Right: keep</Text>
     </SafeAreaView>
+  );
+}
+
+function SummaryRow({
+  emoji,
+  color,
+  label,
+  count,
+}: {
+  emoji: string;
+  color: string;
+  label: string;
+  count: number;
+}) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={[styles.summaryEmoji, { color }]}>{emoji}</Text>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryCount}>{count}</Text>
+    </View>
   );
 }
 
@@ -229,7 +357,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    marginBottom: 12,
+    marginBottom: 16,
+    textAlign: 'center',
   },
   body: {
     fontSize: 16,
@@ -272,7 +401,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#111',
+    backgroundColor: '#1f2937',
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -281,8 +410,77 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  nextCard: {
-    transform: [{ scale: 0.95 }],
+  laterStamp: {
+    alignSelf: 'center',
+    bottom: 40,
+    borderColor: '#d97706',
+  },
+  doneScreen: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 24,
+    justifyContent: 'center',
+  },
+  summary: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  summaryEmoji: {
+    width: 28,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  summaryLabel: {
+    flex: 1,
+    fontSize: 17,
+  },
+  summaryCount: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  group: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#d97706',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  groupThumbs: {
+    width: 64,
+    height: 64,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#e5e7eb',
+  },
+  groupThumb: {
+    width: 32,
+    height: 32,
+  },
+  groupTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  groupSub: {
+    fontSize: 14,
+    color: '#555',
+    marginTop: 2,
+  },
+  groupArrow: {
+    fontSize: 28,
+    color: '#d97706',
   },
   photo: {
     width: '100%',
@@ -290,7 +488,6 @@ const styles = StyleSheet.create({
   },
   stamp: {
     position: 'absolute',
-    top: 32,
     borderWidth: 4,
     borderRadius: 8,
     paddingHorizontal: 12,
@@ -298,11 +495,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.85)',
   },
   keepStamp: {
+    top: 32,
     left: 24,
     borderColor: '#16a34a',
     transform: [{ rotate: '-15deg' }],
   },
   deleteStamp: {
+    top: 32,
     right: 24,
     borderColor: '#dc2626',
     transform: [{ rotate: '15deg' }],
@@ -315,7 +514,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 28,
+    gap: 20,
     paddingVertical: 8,
   },
   round: {
