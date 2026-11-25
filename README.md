@@ -10,8 +10,8 @@ Built with React Native + Expo (TypeScript).
 2. Install the **Expo Go** app on your phone (App Store or Google Play).
 3. In Terminal:
    ```bash
-   git clone <this repo's URL>
-   cd galeri-app
+   git clone https://github.com/ayse-sahin/photoswipe
+   cd photoswipe
    npm install
    npx expo start
    ```
