@@ -207,7 +207,7 @@ export default function SwipeScreen({
           // Couldn't measure the files (e.g. photos only in iCloud): just show the count.
           <Text style={styles.freedTitle}>{t.photosDeleted(deleted.count)}</Text>
         )}
-        <Text style={styles.note}>{t.spaceNote}</Text>
+        <Text style={styles.smallNote}>{t.spaceNote}</Text>
         <Button label={leaveLabel} onPress={onDeleted} />
       </Centered>
     );
@@ -537,6 +537,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     bottom: 40,
     borderColor: colors.unsure,
+  },
+  smallNote: {
+    fontSize: 11,
+    textAlign: 'center',
+    color: colors.faint,
+    marginTop: 6,
+    marginHorizontal: 12,
   },
   freedEmoji: {
     fontSize: 56,

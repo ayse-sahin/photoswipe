@@ -63,11 +63,11 @@ const en = {
   deleteN: (n: number) => `Delete ${n} ${n === 1 ? 'photo' : 'photos'}`,
   pickBestShot: 'Pick the best shot',
   noGroups: (min: number) => `No groups of ${min} or more similar photos in these dates.`,
-  youFreed: (size: string) => `You freed ${size}`,
+  youFreed: (size: string) => `You freed ${size}!`,
   photosDeleted: (n: number) => `${n} ${n === 1 ? 'photo' : 'photos'} deleted`,
   spaceNote:
     'The space comes back when "Recently Deleted" is emptied in the Photos app, or after 30 days.',
-  totalFreed: (size: string) => `Pare has freed ${size} for you so far`,
+  totalFreed: (size: string) => `Pare has freed ${size} on your phone so far!`,
   groupsFound: (n: number) =>
     `${n} ${n === 1 ? 'group' : 'groups'} of similar photos. Tap one to swipe through it.`,
 };
@@ -129,11 +129,11 @@ const tr: typeof en = {
   deleteN: (n) => `${n} fotoğrafı sil`,
   pickBestShot: 'En iyi kareyi seç',
   noGroups: (min) => `Bu tarihlerde ${min} veya daha fazla benzer fotoğraftan oluşan grup yok.`,
-  youFreed: (size) => `${size} yer açtın`,
+  youFreed: (size) => `${size} yer açtın!`,
   photosDeleted: (n) => `${n} fotoğraf silindi`,
   spaceNote:
     'Yer, Fotoğraflar’daki "Son Silinenler" boşaltılınca ya da 30 gün sonra geri kazanılır.',
-  totalFreed: (size) => `Pare şimdiye kadar ${size} yer açtı`,
+  totalFreed: (size) => `Pare şimdiye kadar telefonunda ${size} yer açtı!`,
   groupsFound: (n) => `${n} benzer fotoğraf grubu. Kaydırmak için birine dokun.`,
 };
 
