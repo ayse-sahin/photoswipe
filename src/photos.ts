@@ -37,3 +37,23 @@ export async function loadPhotos(from: Date, to: Date, after?: string): Promise<
     endCursor: page.endCursor,
   };
 }
+
+// Loads every photo in the range (just the list, not the images themselves),
+// newest first. Used by the swipe screen so it knows how many photos there are.
+export async function loadAllPhotos(from: Date, to: Date): Promise<MediaLibrary.Asset[]> {
+  const all: MediaLibrary.Asset[] = [];
+  let after: string | undefined;
+  while (true) {
+    const page = await MediaLibrary.getAssetsAsync({
+      mediaType: MediaLibrary.MediaType.photo,
+      createdAfter: startOfDay(from),
+      createdBefore: endOfDay(to),
+      sortBy: [[MediaLibrary.SortBy.creationTime, false]],
+      first: 500,
+      after,
+    });
+    all.push(...page.assets);
+    if (!page.hasNextPage) return all;
+    after = page.endCursor;
+  }
+}

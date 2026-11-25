@@ -6,7 +6,6 @@ import {
   Dimensions,
   FlatList,
   Linking,
-  Pressable,
   StyleSheet,
   Switch,
   Text,
@@ -14,7 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DateField from './src/DateField';
+import Button from './src/Button';
 import PhotoThumb from './src/PhotoThumb';
+import SwipeScreen from './src/SwipeScreen';
 import { loadPhotos } from './src/photos';
 
 const COLUMNS = 3;
@@ -49,6 +50,8 @@ function HomeScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [swiping, setSwiping] = useState(false);
 
   const rangeEnd = useEndDate ? endDate : new Date();
 
@@ -113,13 +116,18 @@ function HomeScreen() {
     );
   }
 
-  // 3. Pick dates, then show the photos from that range
+  // 3. Swipe through the photos
+  if (swiping) {
+    return <SwipeScreen from={startDate} to={rangeEnd} onClose={() => setSwiping(false)} />;
+  }
+
+  // 4. Pick dates, then show the photos from that range
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="auto" />
       <View style={styles.header}>
         <Text style={styles.title}>Galeri</Text>
-        <Text style={styles.note}>Version: step 3, fix 2</Text>
+        <Text style={styles.note}>Version: step 4</Text>
         {permission.accessPrivileges === 'limited' && (
           <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
         )}
@@ -156,6 +164,9 @@ function HomeScreen() {
               : `${totalCount} photo${totalCount === 1 ? '' : 's'} found`}
           </Text>
         )}
+        {photos && totalCount > 0 && (
+          <Button label="Start swiping" onPress={() => setSwiping(true)} />
+        )}
       </View>
 
       <FlatList
@@ -177,26 +188,6 @@ function Centered({ children }: { children: React.ReactNode }) {
       <StatusBar style="auto" />
       {children}
     </View>
-  );
-}
-
-function Button({
-  label,
-  onPress,
-  disabled,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [styles.button, (pressed || disabled) && { opacity: 0.6 }]}
-    >
-      <Text style={styles.buttonText}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -242,19 +233,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#888',
     marginBottom: 4,
-  },
-  button: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   error: {
     color: '#c00',
