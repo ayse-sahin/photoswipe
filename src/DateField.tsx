@@ -8,11 +8,19 @@ type Props = {
   onChange: (date: Date) => void;
   minimumDate?: Date;
   maximumDate?: Date;
+  locale?: string;
 };
 
 // A labelled date picker. iPhone shows a compact picker inline;
 // Android opens the system date dialog when tapped.
-export default function DateField({ label, value, onChange, minimumDate, maximumDate }: Props) {
+export default function DateField({
+  label,
+  value,
+  onChange,
+  minimumDate,
+  maximumDate,
+  locale,
+}: Props) {
   if (Platform.OS === 'android') {
     const open = () =>
       DateTimePickerAndroid.open({
@@ -28,7 +36,7 @@ export default function DateField({ label, value, onChange, minimumDate, maximum
       <View style={styles.row}>
         {label ? <Text style={styles.label}>{label}</Text> : <View />}
         <Pressable style={styles.androidButton} onPress={open}>
-          <Text style={styles.androidButtonText}>{value.toLocaleDateString()}</Text>
+          <Text style={styles.androidButtonText}>{value.toLocaleDateString(locale)}</Text>
         </Pressable>
       </View>
     );
@@ -42,6 +50,7 @@ export default function DateField({ label, value, onChange, minimumDate, maximum
         mode="date"
         display="compact"
         themeVariant="dark"
+        locale={locale}
         accentColor={colors.accent}
         minimumDate={minimumDate}
         maximumDate={maximumDate}

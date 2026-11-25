@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
 import { colors } from './theme';
+import { useT } from './i18n';
 
 type Props = {
   photos: MediaLibrary.Asset[];
@@ -18,6 +19,7 @@ const COLUMNS = 3;
 const TILE = Dimensions.get('window').width / COLUMNS;
 
 export default function ReviewScreen({ photos, onKeep, onBack, onDeleted }: Props) {
+  const t = useT();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const count = photos.length;
@@ -43,13 +45,11 @@ export default function ReviewScreen({ photos, onKeep, onBack, onDeleted }: Prop
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={onBack} hitSlop={12}>
-          <Text style={styles.link}>‹ Back</Text>
+          <Text style={styles.link}>{t.back}</Text>
         </Pressable>
-        <Text style={styles.title}>Review</Text>
+        <Text style={styles.title}>{t.review}</Text>
         <Text style={styles.sub}>
-          {count === 0
-            ? 'No photos left to delete.'
-            : `${count} photo${count === 1 ? '' : 's'} will be deleted. Tap a photo to keep it instead.`}
+          {t.reviewSub(count)}
         </Text>
       </View>
 
@@ -69,14 +69,13 @@ export default function ReviewScreen({ photos, onKeep, onBack, onDeleted }: Prop
 
       <View style={styles.footer}>
         {error && (
-          <Text style={styles.error}>Nothing was deleted. ({error})</Text>
+          <Text style={styles.error}>{t.nothingDeleted(error)}</Text>
         )}
         <Text style={styles.note}>
-          Deleted photos go to "Recently Deleted" in your Photos app, so you can still get them back
-          for 30 days.
+          {t.recentlyDeletedNote}
         </Text>
         <Button
-          label={deleting ? 'Deleting…' : `Delete ${count} photo${count === 1 ? '' : 's'}`}
+          label={deleting ? t.deleting : t.deleteN(count)}
           onPress={deleteAll}
           disabled={deleting || count === 0}
           variant="danger"

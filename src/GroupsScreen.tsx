@@ -16,6 +16,7 @@ import { colors } from './theme';
 import SwipeScreen from './SwipeScreen';
 import { groupPhotos, PhotoGroup, prepareFingerprints } from './grouping';
 import { loadAllPhotos } from './photos';
+import { useT } from './i18n';
 
 // Only groups with at least this many photos are shown.
 const MIN_GROUP_SIZE = 7;
@@ -31,6 +32,7 @@ type Props = {
 // "Pick the best shot": a list of groups of similar photos. Tap a group to
 // swipe through only those photos.
 export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
+  const t = useT();
   const [photos, setPhotos] = useState<MediaLibrary.Asset[] | null>(null);
   const [ready, setReady] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -70,7 +72,7 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
     return (
       <SwipeScreen
         photos={open.assets}
-        closeLabel="Back to groups"
+        closeLabel={t.backToGroups}
         onClose={() => {
           setFinished((f) => new Set(f).add(open.key));
           setOpen(null);
@@ -90,30 +92,30 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={onClose} hitSlop={12}>
-          <Text style={styles.link}>‹ Back</Text>
+          <Text style={styles.link}>{t.back}</Text>
         </Pressable>
-        <Text style={styles.title}>Pick the best shot</Text>
+        <Text style={styles.title}>{t.pickBestShot}</Text>
         {groups && (
           <Text style={styles.sub}>
             {groups.length === 0
-              ? `No groups of ${MIN_GROUP_SIZE} or more similar photos in these dates.`
-              : `${groups.length} group${groups.length === 1 ? '' : 's'} of similar photos. Tap one to swipe through it.`}
+              ? t.noGroups(MIN_GROUP_SIZE)
+              : t.groupsFound(groups.length)}
           </Text>
         )}
       </View>
 
       {error ? (
         <View style={styles.centered}>
-          <Text style={styles.error}>Something went wrong: {error}</Text>
-          <Button label="Back" onPress={onClose} />
+          <Text style={styles.error}>{t.somethingWrong(error)}</Text>
+          <Button label={t.back} onPress={onClose} />
         </View>
       ) : !groups ? (
         <View style={styles.centered}>
           <ActivityIndicator />
           <Text style={styles.sub}>
             {progress && progress.total > 0
-              ? `Finding similar photos… ${progress.done} / ${progress.total}`
-              : 'Getting your photos ready…'}
+              ? t.findingSimilar(progress.done, progress.total)
+              : t.gettingReady}
           </Text>
         </View>
       ) : (

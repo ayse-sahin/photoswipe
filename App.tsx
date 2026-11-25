@@ -18,6 +18,7 @@ import DateField from './src/DateField';
 import Button from './src/Button';
 import PhotoThumb from './src/PhotoThumb';
 import { colors } from './src/theme';
+import { LanguageProvider, useLanguage, useT } from './src/i18n';
 import GroupsScreen from './src/GroupsScreen';
 import SwipeScreen from './src/SwipeScreen';
 import { loadPhotos } from './src/photos';
@@ -33,14 +34,18 @@ function daysAgo(n: number): Date {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" />
-      <HomeScreen />
-    </SafeAreaProvider>
+    <LanguageProvider>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <HomeScreen />
+      </SafeAreaProvider>
+    </LanguageProvider>
   );
 }
 
 function HomeScreen() {
+  const t = useT();
+  const { language, setLanguage } = useLanguage();
   const [permission, requestPermission] = MediaLibrary.usePermissions({
     granularPermissions: ['photo'],
   });
@@ -108,15 +113,14 @@ function HomeScreen() {
       <Centered>
         <Text style={styles.title}>Pare</Text>
         <Text style={styles.body}>
-          Pare needs access to your photos so you can swipe through them. Your photos never leave
-          your phone.
+          {t.permissionText}
         </Text>
         {permission.canAskAgain ? (
-          <Button label="Allow photo access" onPress={requestPermission} />
+          <Button label={t.allowAccess} onPress={requestPermission} />
         ) : (
           <>
-            <Text style={styles.body}>Photo access is turned off. You can turn it on in Settings.</Text>
-            <Button label="Open Settings" onPress={() => Linking.openSettings()} />
+            <Text style={styles.body}>{t.accessOff}</Text>
+            <Button label={t.openSettings} onPress={() => Linking.openSettings()} />
           </>
         )}
       </Centered>
@@ -153,23 +157,43 @@ function HomeScreen() {
   // 5. Pick dates, then show the photos from that range
   const header = (
     <View style={styles.header}>
+      <View style={styles.langRow}>
+        {(['en', 'tr'] as const).map((l) => (
+          <Pressable
+            key={l}
+            onPress={() => setLanguage(l)}
+            style={[styles.langItem, language === l && styles.langActive]}
+            hitSlop={6}
+          >
+            <Text style={[styles.langText, language === l && styles.langTextActive]}>
+              {l.toUpperCase()}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
       <Text style={[styles.title, !showPhotos && styles.centerText]}>
         Pare<Text style={{ color: colors.accent }}>.</Text>
       </Text>
       <Text style={[styles.tagline, !showPhotos && styles.centerText]}>
-        Pare your camera roll down to the best.
+        {t.tagline}
       </Text>
       {permission.accessPrivileges === 'limited' && (
-        <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
+        <Text style={styles.note}>{t.limitedAccess}</Text>
       )}
 
       <View style={styles.card}>
-        <DateField label="From" value={startDate} maximumDate={rangeEnd} onChange={setStartDate} />
+        <DateField
+          label={t.from}
+          value={startDate}
+          maximumDate={rangeEnd}
+          onChange={setStartDate}
+          locale={t.locale}
+        />
         <View style={styles.divider} />
         <View style={styles.row}>
-          <Text style={styles.label}>Until</Text>
+          <Text style={styles.label}>{t.until}</Text>
           <View style={styles.untilRight}>
-            {!useEndDate && <Text style={styles.today}>Today</Text>}
+            {!useEndDate && <Text style={styles.today}>{t.today}</Text>}
             <Switch
               value={useEndDate}
               onValueChange={setUseEndDate}
@@ -180,6 +204,7 @@ function HomeScreen() {
         {useEndDate && (
           <DateField
             label=""
+            locale={t.locale}
             value={endDate}
             minimumDate={startDate}
             maximumDate={new Date()}
@@ -188,14 +213,14 @@ function HomeScreen() {
         )}
       </View>
 
-      <Button label="Find photos" onPress={findPhotos} disabled={loading} />
+      <Button label={t.findPhotos} onPress={findPhotos} disabled={loading} />
 
-      {error && <Text style={styles.error}>Something went wrong: {error}</Text>}
+      {error && <Text style={styles.error}>{t.somethingWrong(error)}</Text>}
       {photos && (
         <View style={[styles.statRow, !showPhotos && styles.centerRow]}>
           <Text style={styles.statNumber}>{totalCount}</Text>
           <Text style={styles.statLabel}>
-            {totalCount === 1 ? 'photo' : 'photos'} in this range
+            {t.inThisRange(totalCount)}
           </Text>
         </View>
       )}
@@ -203,23 +228,23 @@ function HomeScreen() {
         <View style={styles.actions}>
           <ActionCard
             icon="⇆"
-            title="Swipe"
-            subtitle="Go through them one by one"
+            title={t.swipe}
+            subtitle={t.swipeSub}
             onPress={() => setMode('swipe')}
             highlight
           />
           <ActionCard
             icon="★"
             iconColor={colors.gold}
-            title="Best shot"
-            subtitle="Pick from similar photos"
+            title={t.bestShot}
+            subtitle={t.bestShotSub}
             onPress={() => setMode('best')}
           />
         </View>
       )}
       {photos && totalCount > 0 && (
         <Pressable onPress={() => setShowPhotos((v) => !v)} style={styles.showButton} hitSlop={8}>
-          <Text style={styles.showButtonText}>{showPhotos ? 'Hide photos' : 'Show photos'}</Text>
+          <Text style={styles.showButtonText}>{showPhotos ? t.hidePhotos : t.showPhotos}</Text>
         </Pressable>
       )}
     </View>
@@ -230,7 +255,7 @@ function HomeScreen() {
       <SafeAreaView style={styles.screen}>
         <ScrollView contentContainerStyle={styles.centeredScroll}>
           {header}
-          <Text style={styles.version}>Version: step 7, layout 2</Text>
+          <Text style={styles.version}>Version: step 7, Turkish</Text>
         </ScrollView>
       </SafeAreaView>
     );
@@ -249,7 +274,7 @@ function HomeScreen() {
         ListFooterComponent={
           <View>
             {loading && <ActivityIndicator color={colors.accent} style={{ margin: 16 }} />}
-            <Text style={styles.version}>Version: step 7, layout 2</Text>
+            <Text style={styles.version}>Version: step 7, Turkish</Text>
           </View>
         }
       />
@@ -438,6 +463,32 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 28,
     marginBottom: 4,
+  },
+  langRow: {
+    flexDirection: 'row',
+    alignSelf: 'flex-end',
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  langItem: {
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 7,
+  },
+  langActive: {
+    backgroundColor: colors.accent,
+  },
+  langText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.muted,
+  },
+  langTextActive: {
+    color: colors.onAccent,
   },
   centerText: {
     textAlign: 'center',

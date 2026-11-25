@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
 import { colors } from './theme';
+import { useT } from './i18n';
 import ReviewScreen from './ReviewScreen';
 import { loadAllPhotos } from './photos';
 
@@ -50,10 +51,12 @@ export default function SwipeScreen({
   from,
   to,
   photos: givenPhotos,
-  closeLabel = 'Back to start',
+  closeLabel,
   onClose,
   onDeleted,
 }: Props) {
+  const t = useT();
+  const leaveLabel = closeLabel ?? t.backToStart;
   const [allPhotos, setAllPhotos] = useState<MediaLibrary.Asset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -171,8 +174,8 @@ export default function SwipeScreen({
   if (error) {
     return (
       <Centered>
-        <Text style={styles.body}>Something went wrong: {error}</Text>
-        <Button label="Back" onPress={onClose} />
+        <Text style={styles.body}>{t.somethingWrong(error)}</Text>
+        <Button label={t.back} onPress={onClose} />
       </Centered>
     );
   }
@@ -181,7 +184,7 @@ export default function SwipeScreen({
     return (
       <Centered>
         <ActivityIndicator />
-        <Text style={styles.body}>Getting your photos ready…</Text>
+        <Text style={styles.body}>{t.gettingReady}</Text>
       </Centered>
     );
   }
@@ -189,11 +192,11 @@ export default function SwipeScreen({
   if (deletedCount !== null) {
     return (
       <Centered>
-        <Text style={styles.title}>Deleted {deletedCount} photo{deletedCount === 1 ? '' : 's'} 🎉</Text>
+        <Text style={styles.title}>{t.deletedTitle(deletedCount)}</Text>
         <Text style={styles.body}>
-          Changed your mind? They're in "Recently Deleted" in the Photos app for 30 days.
+          {t.deletedBody}
         </Text>
-        <Button label={closeLabel} onPress={onDeleted} />
+        <Button label={leaveLabel} onPress={onDeleted} />
       </Centered>
     );
   }
@@ -223,11 +226,11 @@ export default function SwipeScreen({
     const undecidedPhotos = allPhotos.filter((p) => decisions.get(p.id) === 'undecided');
     return (
       <SafeAreaView style={styles.doneScreen}>
-        <Text style={styles.title}>{undecided > 0 ? 'Almost done!' : 'All done!'}</Text>
+        <Text style={styles.title}>{undecided > 0 ? t.almostDone : t.allDone}</Text>
         <View style={styles.summary}>
-          <SummaryRow emoji="✓" color={colors.keep} label="Keep" count={kept} />
-          <SummaryRow emoji="✕" color={colors.delete} label="Delete" count={toDelete} />
-          <SummaryRow emoji="?" color={colors.unsure} label="Undecided" count={undecided} />
+          <SummaryRow emoji="✓" color={colors.keep} label={t.keep} count={kept} />
+          <SummaryRow emoji="✕" color={colors.delete} label={t.delete} count={toDelete} />
+          <SummaryRow emoji="?" color={colors.unsure} label={t.undecided} count={undecided} />
         </View>
 
         {undecided > 0 && (
@@ -241,9 +244,9 @@ export default function SwipeScreen({
               ))}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.groupTitle}>Undecided</Text>
+              <Text style={styles.groupTitle}>{t.undecided}</Text>
               <Text style={styles.groupSub}>
-                {undecided} photo{undecided === 1 ? '' : 's'} · tap to swipe these
+                {t.undecidedSub(undecided)}
               </Text>
             </View>
             <Text style={styles.groupArrow}>›</Text>
@@ -252,15 +255,15 @@ export default function SwipeScreen({
 
         {toDelete > 0 ? (
           <Button
-            label={`Review ${toDelete} photo${toDelete === 1 ? '' : 's'} to delete`}
+            label={t.reviewToDelete(toDelete)}
             onPress={() => setReviewing(true)}
             variant="danger"
           />
         ) : (
-          <Text style={styles.note}>No photos marked for deletion.</Text>
+          <Text style={styles.note}>{t.noneMarked}</Text>
         )}
-        {history.length > 0 && <Button label="Undo last swipe" onPress={undo} variant="secondary" />}
-        <Button label={closeLabel} onPress={onClose} />
+        {history.length > 0 && <Button label={t.undoLast} onPress={undo} variant="secondary" />}
+        <Button label={leaveLabel} onPress={onClose} />
       </SafeAreaView>
     );
   }
@@ -296,13 +299,13 @@ export default function SwipeScreen({
     if (marked.length === 0) return onClose();
     const n = marked.length;
     Alert.alert(
-      `Delete ${n} photo${n === 1 ? '' : 's'}?`,
-      `You marked ${n} photo${n === 1 ? '' : 's'} to delete so far.`,
+      t.exitTitle(n),
+      t.exitBody(n),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Exit without deleting', onPress: onClose },
+        { text: t.cancel, style: 'cancel' },
+        { text: t.exitNoDelete, onPress: onClose },
         {
-          text: `Delete ${n} & exit`,
+          text: t.deleteAndExit(n),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -322,10 +325,10 @@ export default function SwipeScreen({
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
         <Pressable onPress={exitPressed} hitSlop={12} style={styles.exitButton}>
-          <Text style={styles.exitText}>Exit</Text>
+          <Text style={styles.exitText}>{t.exit}</Text>
         </Pressable>
         <Text style={styles.progress}>
-          {round === 'undecided' ? 'Undecided ' : ''}
+          {round === 'undecided' ? t.undecidedRound : ''}
           {index + 1} / {deck.length}
         </Text>
         <Text style={styles.counts}>
@@ -352,15 +355,15 @@ export default function SwipeScreen({
               {isTop && (
                 <>
                   <Animated.View style={[styles.stamp, styles.keepStamp, { opacity: keepOpacity }]}>
-                    <Text style={[styles.stampText, { color: colors.keep }]}>KEEP</Text>
+                    <Text style={[styles.stampText, { color: colors.keep }]}>{t.stampKeep}</Text>
                   </Animated.View>
                   <Animated.View
                     style={[styles.stamp, styles.deleteStamp, { opacity: deleteOpacity }]}
                   >
-                    <Text style={[styles.stampText, { color: colors.delete }]}>DELETE</Text>
+                    <Text style={[styles.stampText, { color: colors.delete }]}>{t.stampDelete}</Text>
                   </Animated.View>
                   <Animated.View style={[styles.stamp, styles.laterStamp, { opacity: laterOpacity }]}>
-                    <Text style={[styles.stampText, { color: colors.unsure }]}>NOT SURE</Text>
+                    <Text style={[styles.stampText, { color: colors.unsure }]}>{t.stampUnsure}</Text>
                   </Animated.View>
                 </>
               )}
@@ -375,7 +378,7 @@ export default function SwipeScreen({
         <RoundButton label="?" color={colors.unsure} small onPress={() => decideRef.current('undecided')} />
         <RoundButton label="✓" color={colors.keep} onPress={() => decideRef.current('keep')} />
       </View>
-      <Text style={styles.hint}>Left: delete · Up: not sure · Right: keep</Text>
+      <Text style={styles.hint}>{t.swipeHint}</Text>
     </SafeAreaView>
   );
 }
