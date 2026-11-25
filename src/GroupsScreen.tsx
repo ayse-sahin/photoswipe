@@ -135,9 +135,7 @@ function GroupRow({
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
       <View style={styles.collage}>
-        {group.assets.slice(0, 4).map((p) => (
-          <PhotoThumb key={p.id} asset={p} style={styles.collageTile} small />
-        ))}
+        <PhotoThumb asset={group.assets[0]} style={styles.collageTile} small />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{group.assets.length} similar photos</Text>
@@ -210,8 +208,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   collageTile: {
-    width: COLLAGE / 2,
-    height: COLLAGE / 2,
+    width: COLLAGE,
+    height: COLLAGE,
   },
   rowTitle: {
     fontSize: 17,
