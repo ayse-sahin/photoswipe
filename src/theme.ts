@@ -8,9 +8,9 @@ export const colors = {
   text: '#F3E9DC', // warm cream
   muted: '#C4B19A',
   faint: '#8E7569',
-  accent: '#A9C4A0', // soft green, the app's signature color (buttons, highlights)
-  accentDeep: '#7E9A76', // darker soft green
-  onAccent: '#2F1C24', // text on green buttons
+  accent: '#606528', // olive green from Bora, the app's signature color (buttons, highlights)
+  accentDeep: '#4A4E1F', // darker olive
+  onAccent: '#F3E9DC', // cream text on olive buttons
   gold: '#BBA47B', // from Bora's palette
   goldDeep: '#98824C',
   deep: '#380702', // deepest red, for dark accents

@@ -229,7 +229,7 @@ function HomeScreen() {
         ListFooterComponent={
           <View>
             {loading && <ActivityIndicator color={colors.accent} style={{ margin: 16 }} />}
-            <Text style={styles.version}>Version: step 7, design 3</Text>
+            <Text style={styles.version}>Version: step 7, design 4</Text>
           </View>
         }
       />
