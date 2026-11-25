@@ -7,6 +7,7 @@ import {
   FlatList,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -56,10 +57,12 @@ function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [mode, setMode] = useState<'home' | 'swipe' | 'best'>('home');
+  const [showPhotos, setShowPhotos] = useState(false);
 
   const rangeEnd = useEndDate ? endDate : new Date();
 
   async function findPhotos() {
+    setShowPhotos(false);
     setLoading(true);
     setError(null);
     try {
@@ -150,10 +153,12 @@ function HomeScreen() {
   // 5. Pick dates, then show the photos from that range
   const header = (
     <View style={styles.header}>
-      <Text style={styles.title}>
+      <Text style={[styles.title, !showPhotos && styles.centerText]}>
         Pare<Text style={{ color: colors.accent }}>.</Text>
       </Text>
-      <Text style={styles.tagline}>Pare your camera roll down to the best.</Text>
+      <Text style={[styles.tagline, !showPhotos && styles.centerText]}>
+        Pare your camera roll down to the best.
+      </Text>
       {permission.accessPrivileges === 'limited' && (
         <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
       )}
@@ -187,7 +192,7 @@ function HomeScreen() {
 
       {error && <Text style={styles.error}>Something went wrong: {error}</Text>}
       {photos && (
-        <View style={styles.statRow}>
+        <View style={[styles.statRow, !showPhotos && styles.centerRow]}>
           <Text style={styles.statNumber}>{totalCount}</Text>
           <Text style={styles.statLabel}>
             {totalCount === 1 ? 'photo' : 'photos'} in this range
@@ -204,20 +209,35 @@ function HomeScreen() {
             highlight
           />
           <ActionCard
-            icon="✦"
+            icon="★"
+            iconColor={colors.gold}
             title="Best shot"
             subtitle="Pick from similar photos"
             onPress={() => setMode('best')}
           />
         </View>
       )}
-      {photos && totalCount > 0 && <Text style={styles.section}>In this range</Text>}
+      {photos && totalCount > 0 && (
+        <Pressable onPress={() => setShowPhotos((v) => !v)} style={styles.showButton} hitSlop={8}>
+          <Text style={styles.showButtonText}>{showPhotos ? 'Hide photos' : 'Show photos'}</Text>
+        </Pressable>
+      )}
     </View>
   );
 
+  if (!showPhotos) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <ScrollView contentContainerStyle={styles.centeredScroll}>
+          {header}
+          <Text style={styles.version}>Version: step 7, layout 1</Text>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
-      <StatusBar style="light" />
       <FlatList
         ListHeaderComponent={header}
         data={photos ?? []}
@@ -229,7 +249,7 @@ function HomeScreen() {
         ListFooterComponent={
           <View>
             {loading && <ActivityIndicator color={colors.accent} style={{ margin: 16 }} />}
-            <Text style={styles.version}>Version: step 7, design 4</Text>
+            <Text style={styles.version}>Version: step 7, layout 1</Text>
           </View>
         }
       />
@@ -243,8 +263,10 @@ function ActionCard({
   subtitle,
   onPress,
   highlight,
+  iconColor,
 }: {
   icon: string;
+  iconColor?: string;
   title: string;
   subtitle: string;
   onPress: () => void;
@@ -259,7 +281,15 @@ function ActionCard({
         pressed && { opacity: 0.75 },
       ]}
     >
-      <Text style={[styles.actionIcon, highlight && { color: colors.onAccent }]}>{icon}</Text>
+      <Text
+        style={[
+          styles.actionIcon,
+          iconColor ? { color: iconColor } : null,
+          highlight && { color: colors.onAccent },
+        ]}
+      >
+        {icon}
+      </Text>
       <Text style={[styles.actionTitle, highlight && { color: colors.onAccent }]}>{title}</Text>
       <Text style={[styles.actionSub, highlight && { color: colors.onAccent, opacity: 0.75 }]}>
         {subtitle}
@@ -408,6 +438,30 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 28,
     marginBottom: 4,
+  },
+  centerText: {
+    textAlign: 'center',
+  },
+  centerRow: {
+    justifyContent: 'center',
+  },
+  centeredScroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  showButton: {
+    alignSelf: 'center',
+    marginTop: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  showButtonText: {
+    fontSize: 14,
+    color: colors.muted,
+    fontWeight: '600',
   },
   tile: {
     width: TILE,

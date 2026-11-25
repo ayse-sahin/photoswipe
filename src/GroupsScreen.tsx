@@ -1,6 +1,14 @@
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
@@ -112,9 +120,11 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
         <FlatList
           data={groups}
           keyExtractor={(g) => g.key}
-          contentContainerStyle={styles.list}
+          numColumns={COLUMNS}
+          contentContainerStyle={styles.grid}
+          columnWrapperStyle={{ gap: GAP }}
           renderItem={({ item }) => (
-            <GroupRow
+            <GroupTile
               group={item}
               done={finished.has(item.key)}
               onPress={() => setOpen(item)}
@@ -126,7 +136,8 @@ export default function GroupsScreen({ from, to, onClose, onDeleted }: Props) {
   );
 }
 
-function GroupRow({
+// One group as a square tile: its first photo, with the number of photos on it.
+function GroupTile({
   group,
   done,
   onPress,
@@ -136,26 +147,29 @@ function GroupRow({
   onPress: () => void;
 }) {
   const when = new Date(group.assets[0].creationTime);
-  const label = when.toLocaleDateString([], { day: 'numeric', month: 'short' });
   const time = when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
-      <View style={styles.collage}>
-        <PhotoThumb asset={group.assets[0]} style={styles.collageTile} small />
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
+      <PhotoThumb asset={group.assets[0]} style={styles.tilePhoto} small />
+      {done && <View style={styles.doneShade} />}
+      <View style={styles.countBadge}>
+        <Text style={styles.countText}>{group.assets.length}</Text>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{group.assets.length} similar photos</Text>
-        <Text style={styles.rowSub}>
-          {label}, {time}
-        </Text>
-        {done && <Text style={styles.done}>✓ Swiped</Text>}
-      </View>
-      <Text style={styles.arrow}>›</Text>
+      {done && (
+        <View style={styles.doneBadge}>
+          <Text style={styles.doneText}>✓</Text>
+        </View>
+      )}
+      <Text style={styles.tileTime}>{time}</Text>
     </Pressable>
   );
 }
 
-const COLLAGE = 88;
+const COLUMNS = 3;
+const GAP = 10;
+const PADDING = 16;
+const TILE = (Dimensions.get('window').width - PADDING * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
+
 
 const styles = StyleSheet.create({
   screen: {
@@ -193,49 +207,70 @@ const styles = StyleSheet.create({
     color: colors.delete,
     textAlign: 'center',
   },
-  list: {
-    padding: 16,
-    gap: 12,
+  grid: {
+    padding: PADDING,
+    gap: GAP,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 10,
-    borderRadius: 14,
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: 16,
+    overflow: 'hidden',
     backgroundColor: colors.surface,
   },
-  collage: {
-    width: COLLAGE,
-    height: COLLAGE,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: colors.photoBg,
+  tilePhoto: {
+    width: TILE,
+    height: TILE,
   },
-  collageTile: {
-    width: COLLAGE,
-    height: COLLAGE,
+  doneShade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(47,28,36,0.55)',
   },
-  rowTitle: {
+  countBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 26,
+    height: 26,
+    paddingHorizontal: 7,
+    borderRadius: 13,
+    backgroundColor: 'rgba(47,28,36,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countText: {
     color: colors.text,
-    fontSize: 17,
+    fontSize: 13,
     fontWeight: '700',
   },
-  rowSub: {
-    fontSize: 14,
-    color: colors.muted,
-    marginTop: 2,
+  doneBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  done: {
+  doneText: {
+    color: colors.onAccent,
     fontSize: 14,
-    color: colors.keep,
+    fontWeight: '800',
+  },
+  tileTime: {
+    position: 'absolute',
+    left: 8,
+    bottom: 6,
+    color: colors.text,
+    fontSize: 12,
     fontWeight: '600',
-    marginTop: 4,
-  },
-  arrow: {
-    fontSize: 28,
-    color: colors.faint,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowRadius: 3,
   },
 });
