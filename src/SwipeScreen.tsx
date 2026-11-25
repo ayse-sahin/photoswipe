@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import PhotoThumb from './PhotoThumb';
+import ReviewScreen from './ReviewScreen';
 import { loadAllPhotos } from './photos';
 
 export type Decision = 'keep' | 'delete' | 'undecided';
@@ -21,6 +22,8 @@ type Props = {
   from: Date;
   to: Date;
   onClose: () => void;
+  // Called after photos were deleted, so the start screen can refresh.
+  onDeleted: () => void;
 };
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -34,7 +37,7 @@ const STACK_SIZE = 3;
 
 type Round = 'all' | 'undecided';
 
-export default function SwipeScreen({ from, to, onClose }: Props) {
+export default function SwipeScreen({ from, to, onClose, onDeleted }: Props) {
   const [allPhotos, setAllPhotos] = useState<MediaLibrary.Asset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +48,8 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
   const [earlier, setEarlier] = useState<Map<string, Decision>>(new Map());
   // One entry per swipe in this round, in order. Its length is the index of the current card.
   const [history, setHistory] = useState<{ id: string; decision: Decision }[]>([]);
+  const [reviewing, setReviewing] = useState(false);
+  const [deletedCount, setDeletedCount] = useState<number | null>(null);
 
   useEffect(() => {
     loadAllPhotos(from, to)
@@ -122,15 +127,21 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
     setHistory((h) => h.slice(0, -1));
   }
 
-  // Final decision for every photo: earlier rounds, overwritten by this round.
+  // Photos the user changed to "keep" on the review screen.
+  const [keptInReview, setKeptInReview] = useState<Set<string>>(new Set());
+
+  // Final decision for every photo: earlier rounds, overwritten by this round,
+  // overwritten by changes made on the review screen.
   const decisions = new Map(earlier);
   for (const h of history) decisions.set(h.id, h.decision);
+  for (const id of keptInReview) decisions.set(id, 'keep');
 
   function startUndecidedRound() {
     if (!allPhotos) return;
     const undecided = allPhotos.filter((p) => decisions.get(p.id) === 'undecided');
     for (const p of undecided) positionOf(p.id).setValue({ x: 0, y: 0 });
     setEarlier(decisions);
+    setKeptInReview(new Set());
     setDeck(undecided);
     setHistory([]);
     setRound('undecided');
@@ -151,6 +162,29 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
         <ActivityIndicator />
         <Text style={styles.body}>Getting your photos ready…</Text>
       </Centered>
+    );
+  }
+
+  if (deletedCount !== null) {
+    return (
+      <Centered>
+        <Text style={styles.title}>Deleted {deletedCount} photo{deletedCount === 1 ? '' : 's'} 🎉</Text>
+        <Text style={styles.body}>
+          Changed your mind? They're in "Recently Deleted" in the Photos app for 30 days.
+        </Text>
+        <Button label="Back to start" onPress={onDeleted} />
+      </Centered>
+    );
+  }
+
+  if (reviewing) {
+    return (
+      <ReviewScreen
+        photos={allPhotos.filter((p) => decisions.get(p.id) === 'delete')}
+        onKeep={(id) => setKeptInReview((s) => new Set(s).add(id))}
+        onBack={() => setReviewing(false)}
+        onDeleted={setDeletedCount}
+      />
     );
   }
 
@@ -195,7 +229,15 @@ export default function SwipeScreen({ from, to, onClose }: Props) {
           </Pressable>
         )}
 
-        <Text style={styles.note}>Nothing has been deleted. Deleting comes in the next step.</Text>
+        {toDelete > 0 ? (
+          <Button
+            label={`Review ${toDelete} photo${toDelete === 1 ? '' : 's'} to delete`}
+            onPress={() => setReviewing(true)}
+            variant="danger"
+          />
+        ) : (
+          <Text style={styles.note}>No photos marked for deletion.</Text>
+        )}
         {history.length > 0 && <Button label="Undo last swipe" onPress={undo} variant="secondary" />}
         <Button label="Back to start" onPress={onClose} />
       </SafeAreaView>

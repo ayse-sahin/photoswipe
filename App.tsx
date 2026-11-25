@@ -118,7 +118,17 @@ function HomeScreen() {
 
   // 3. Swipe through the photos
   if (swiping) {
-    return <SwipeScreen from={startDate} to={rangeEnd} onClose={() => setSwiping(false)} />;
+    return (
+      <SwipeScreen
+        from={startDate}
+        to={rangeEnd}
+        onClose={() => setSwiping(false)}
+        onDeleted={() => {
+          setSwiping(false);
+          findPhotos();
+        }}
+      />
+    );
   }
 
   // 4. Pick dates, then show the photos from that range
@@ -127,7 +137,7 @@ function HomeScreen() {
       <StatusBar style="auto" />
       <View style={styles.header}>
         <Text style={styles.title}>Galeri</Text>
-        <Text style={styles.note}>Version: step 4, update 2</Text>
+        <Text style={styles.note}>Version: step 5</Text>
         {permission.accessPrivileges === 'limited' && (
           <Text style={styles.note}>You gave access to only some photos, so only those will show.</Text>
         )}

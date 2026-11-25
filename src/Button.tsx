@@ -4,7 +4,7 @@ type Props = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'danger';
 };
 
 export default function Button({ label, onPress, disabled, variant = 'primary' }: Props) {
@@ -16,6 +16,7 @@ export default function Button({ label, onPress, disabled, variant = 'primary' }
       style={({ pressed }) => [
         styles.button,
         secondary && styles.secondary,
+        variant === 'danger' && styles.danger,
         (pressed || disabled) && { opacity: 0.6 },
       ]}
     >
@@ -35,6 +36,9 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: '#eef1f5',
+  },
+  danger: {
+    backgroundColor: '#dc2626',
   },
   text: {
     color: '#fff',
